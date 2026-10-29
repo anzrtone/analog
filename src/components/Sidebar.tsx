@@ -50,7 +50,7 @@ const Item = memo(function Item({ item, active, compact }: { item: NavItem; acti
   return (
     <button
       type="button"
-      onClick={() => navigate(item.to)}
+      onClick={() => navigate(item.to, { root: true })}
       aria-label={item.label}
       aria-current={active ? 'page' : undefined}
       data-tour={item.tour}

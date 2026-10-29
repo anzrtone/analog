@@ -6,10 +6,18 @@ import { useSettings } from '@/db/settings';
 import { isTab, navigate, useNav, type Route, type Tab } from '@/features/nav';
 import { useWide } from '@/features/responsive';
 import { useGlobalShortcuts } from '@/features/shortcuts';
-import { closeTopOverlay, cx, Pad, Screen } from '@/components/ui';
+import { closeTopOverlay, cx } from '@/components/ui';
 import { DialogHost } from '@/components/Dialog';
 import { Sidebar } from '@/components/Sidebar';
 import { ExercisesScreen } from '@/screens/ExercisesScreen';
+import { BackupScreen } from '@/screens/BackupScreen';
+import { DevLogScreen } from '@/screens/DevLogScreen';
+import { ExerciseDetailScreen, ExerciseEditScreen } from '@/screens/ExerciseScreens';
+import { GymScreen, GymsScreen } from '@/screens/GymScreens';
+import { ImportScreen } from '@/screens/ImportScreen';
+import { MeasurementsScreen } from '@/screens/MeasurementsScreen';
+import { AboutScreen, AdminScreen, KitchenSinkScreen, MoreScreen } from '@/screens/MoreScreens';
+import { SettingsScreen } from '@/screens/SettingsScreen';
 import { HistoryScreen, WorkoutDetailView } from '@/screens/HistoryScreen';
 import { MesoReportScreen } from '@/screens/MesoReportScreen';
 import { ProgramBuilderScreen } from '@/screens/ProgramBuilderScreen';
@@ -98,20 +106,35 @@ const CurrentScreen = memo(function CurrentScreen({ route }: { route: Route }) {
       return <StatsScreen />;
     case 'share':
       return <ShareScreen key={`${route.kind}:${route.id}`} kind={route.kind} id={route.id} />;
-    default:
-      return <NotYet name={route.name} />;
+    case 'exercise':
+      return <ExerciseDetailScreen key={route.id} id={route.id} />;
+    case 'exerciseEdit':
+      return <ExerciseEditScreen key={route.id ?? 'new'} id={route.id} />;
+    case 'gyms':
+      return <GymsScreen />;
+    case 'gym':
+      return <GymScreen key={route.id} id={route.id} />;
+    case 'measurements':
+      return <MeasurementsScreen />;
+    case 'import':
+      return <ImportScreen />;
+    case 'backup':
+      return <BackupScreen />;
+    case 'settings':
+      return <SettingsScreen />;
+    case 'about':
+      return <AboutScreen />;
+    case 'devlog':
+      return <DevLogScreen />;
+    case 'more':
+      return <MoreScreen />;
+    case 'admin':
+      return <AdminScreen />;
+    case 'kitchen':
+      return <KitchenSinkScreen />;
   }
 });
 
-function NotYet({ name }: { name: string }) {
-  return (
-    <Screen title={name} backButton>
-      <Pad>
-        <p className="text-ink2">This page is part of a later phase of the rebuild.</p>
-      </Pad>
-    </Screen>
-  );
-}
 
 /** Carbon (dark, default), Paper (light) or System: one attribute on <html> swaps every token. */
 function useTheme(theme: 'carbon' | 'paper' | 'system') {

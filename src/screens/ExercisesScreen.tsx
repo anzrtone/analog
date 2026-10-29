@@ -49,7 +49,7 @@ export function ExercisesScreen({ pick, swap, target, picker: pickerToken }: { p
   return (
     <Screen
       title={title}
-      backButton={!!(pick || swap || pickerToken)}
+      backButton
       meta={`${all.length} EXERCISES · UNLIMITED CUSTOM`}
       right={
         <button type="button" className="btn-secondary btn-compact mb-1" onClick={() => navigate({ name: 'exerciseEdit' })}>

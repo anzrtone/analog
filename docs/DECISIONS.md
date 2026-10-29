@@ -46,3 +46,14 @@ Choices made while rebuilding Analog 0.2.0 on the Promodoro stack, with the reas
 - **The muscle heatmap is a schematic body drawn in SVG** (`src/components/Heatmap.tsx`). 0.1.0 used `react-native-body-highlighter`, which only runs in React Native. Same regions, same mapping (a region shows its hardest-worked muscle), one red hue in five opacity steps.
 - **The exercise picker hands back its choice through a token that carries where it goes** (`builder|program|block|day|slot`), because the builder unmounts while the library page is open.
 - **Wide-screen screenshots are taken with headless Edge** driven over the DevTools protocol (`scripts/browse.mjs`, walks in `scripts/walks/`), because the app's browser pane crops wide viewports at small window sizes. Edge was already installed; nothing new was installed.
+
+## More
+
+- **Progress photos are stored in the database** (a new `photoFiles` table, schema version 2, `photos.uri` = `photo:<id>`), downscaled to 1600 px JPEG. They stay out of backups, as in 0.1.0. A plain `<input type="file" accept="image/*">` picks them; on Android the WebView offers the camera and the gallery from it.
+- **Imports and restores use `<input type="file">`** on every platform, as the prompt asks; exports go through the platform bridge (share sheet on Android, Save dialog on Windows, a download in the dev build).
+- **Backup and export also lists the automatic backups** so any of the last seven can be restored. Without that list the automatic backups would have no way back in.
+- **Health Connect is left out of 0.2.0** (STATUS.md, "Later"); the Settings section is gone, the `healthConnect` setting is kept so backups round-trip.
+- **Settings switches are toggles** instead of 0.1.0's On/Off segmented controls: same settings, ink-only switch (no plate colour).
+- **Spine links start a fresh page stack**, so a page opened from the spine has no back arrow; the arrow shows only when there is a page to go back to.
+- **The kitchen sink moved into the developer group with the admin console** (the prompt: admin and kitchen sink only in dev builds). Both are compiled out of release builds through `__DEV_BUILD__`.
+- **The admin console's demo history** (`src/dev/admin.ts`) is 0.1.0's, ported to async: three programs played through the real engine, freestyle sessions with every set type, measurements, gyms.

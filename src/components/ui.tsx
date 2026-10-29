@@ -3,7 +3,7 @@
 /** Logbook UI primitives: ruled rows, margin notes, sheets and the one-primary-button rule (BRAND §6–7). */
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { ArrowLeft, X } from 'lucide-react';
-import { back } from '@/features/nav';
+import { back, useNav } from '@/features/nav';
 
 export function cx(...c: Array<string | false | null | undefined>) {
   return c.filter(Boolean).join(' ');
@@ -41,7 +41,10 @@ export function useBackClose(open: boolean, onClose: () => void) {
  * A page: paper background, 16 px margins, serif title, optional log-header meta line.
  * Wide screens keep a readable page width. Pushed pages get a back arrow.
  */
-export function Screen({ title, meta, children, footer, right, backButton, maxWidth = 880, tour }: { title?: ReactNode; meta?: ReactNode; children: ReactNode; footer?: ReactNode; right?: ReactNode; backButton?: boolean; maxWidth?: number; tour?: string }) {
+export function Screen({ title, meta, children, footer, right, backButton: wantsBack, maxWidth = 880, tour }: { title?: ReactNode; meta?: ReactNode; children: ReactNode; footer?: ReactNode; right?: ReactNode; backButton?: boolean; maxWidth?: number; tour?: string }) {
+  // Only when there is a page to go back to (a page opened from the spine starts its own stack).
+  const depth = useNav().stack.length;
+  const backButton = wantsBack && depth > 1;
   return (
     <div className="flex min-h-full flex-col" data-tour={tour}>
       <div className="flex-1 pb-8">

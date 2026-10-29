@@ -16,7 +16,8 @@
 
 /* Carbon (dark) is the default theme. */
 :root,
-:root[data-theme='carbon'] {
+:root[data-theme='carbon'],
+[data-theme='carbon'] {
   --paper: 23 24 28; /* #17181C */
   --paper-raised: 31 32 37; /* #1F2025 */
   --paper-sunk: 18 19 22; /* #121316 */
@@ -39,7 +40,8 @@
 }
 
 /* Paper (light). */
-:root[data-theme='paper'] {
+:root[data-theme='paper'],
+[data-theme='paper'] {
   --paper: 246 241 231; /* #F6F1E7 */
   --paper-raised: 251 248 241; /* #FBF8F1 */
   --paper-sunk: 237 230 214; /* #EDE6D6 */

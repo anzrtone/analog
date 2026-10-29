@@ -42,9 +42,9 @@ let stack: Route[] = [{ name: 'today' }];
 const subs = new Set<() => void>();
 const emit = () => subs.forEach((f) => f());
 
-/** Open a page on top of the current one. A tab clears the stack instead. */
-export function navigate(route: Route): void {
-  stack = isTab(route) ? [route] : [...stack, route];
+/** Open a page on top of the current one. A tab (or `root`, as the wide-screen spine uses) starts a fresh stack. */
+export function navigate(route: Route, opts: { root?: boolean } = {}): void {
+  stack = isTab(route) || opts.root ? [route] : [...stack, route];
   emit();
 }
 

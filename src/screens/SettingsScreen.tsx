@@ -1,0 +1,127 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (c) 2026 The Analog contributors
+import { useEffect, useState } from 'react';
+import { SURVEY_URL } from '@/config';
+import { patchSettings, useSettings, type AppSettings } from '@/db/settings';
+import { formatClock } from '@/engine/math/units';
+import { navigate } from '@/features/nav';
+import { openOnboarding, setSharing } from '@/features/onboarding/store';
+import { startTour } from '@/features/tour/store';
+import { platform } from '@/platform';
+import { ChoiceRow, Field, MarginNote, Pad, Screen, Section, Segmented, ToggleRow } from '@/components/ui';
+
+const set = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void patchSettings({ [key]: value } as Partial<AppSettings>);
+
+export function SettingsScreen() {
+  const s = useSettings();
+  const [notif, setNotif] = useState<string | null>(null);
+  const [exact, setExact] = useState(true);
+  const android = platform().kind === 'android';
+  useEffect(() => {
+    void platform().canScheduleExactAlarms().then(setExact);
+  }, []);
+  return (
+    <Screen title="Settings" backButton>
+      <Section title="YOU">
+        <Pad className="flex flex-col gap-2">
+          <Field label="Your name" value={s.profile.name} onChange={(e) => set('profile', { ...s.profile, name: e.target.value.slice(0, 40) })} maxLength={40} autoComplete="given-name" placeholder="Only used to greet you" />
+          <MarginNote>It never leaves this device.</MarginNote>
+        </Pad>
+        {SURVEY_URL && s.survey ? <ToggleRow label="Share my welcome answers anonymously" hint="never your name or your training data; off deletes them" checked={s.shareSurvey} onChange={(v) => void setSharing(v)} /> : null}
+        <Pad className="flex flex-wrap gap-2 pt-3">
+          <button type="button" className="btn-secondary" onClick={() => openOnboarding('survey')}>
+            Retake the welcome questions
+          </button>
+          <button
+            type="button"
+            className="btn-ghost"
+            onClick={() => {
+              navigate({ name: 'today' });
+              void startTour('main');
+            }}
+          >
+            Take the tour again
+          </button>
+        </Pad>
+      </Section>
+
+      <Section title="UNITS AND EFFORT">
+        <ChoiceRow label="Units">
+          <Segmented label="Units" value={s.unit} onChange={(v) => set('unit', v)} options={[{ value: 'kg', label: 'kg' }, { value: 'lb', label: 'lb' }]} />
+        </ChoiceRow>
+        <ChoiceRow label="Effort">
+          <Segmented label="Effort" value={s.effort} onChange={(v) => set('effort', v)} options={[{ value: 'rir', label: 'RIR' }, { value: 'rpe', label: 'RPE' }]} />
+        </ChoiceRow>
+      </Section>
+
+      <Section title="LOOK">
+        <ChoiceRow label="Theme">
+          <Segmented label="Theme" value={s.theme} onChange={(v) => set('theme', v)} options={[{ value: 'carbon', label: 'Carbon' }, { value: 'paper', label: 'Paper' }, { value: 'system', label: 'System' }]} />
+        </ChoiceRow>
+        <ChoiceRow label="Clock">
+          <Segmented label="Clock" value={s.clock} onChange={(v) => set('clock', v)} options={[{ value: '12h', label: '6:30 PM' }, { value: '24h', label: '18:30' }]} />
+        </ChoiceRow>
+      </Section>
+
+      <Section title="REST TIMER">
+        <ChoiceRow label="Default rest">
+          <Segmented label="Default rest" value={String(s.defaultRestMs)} onChange={(v) => set('defaultRestMs', Number(v))} options={[60000, 90000, 120000, 180000].map((ms) => ({ value: String(ms), label: formatClock(ms) }))} />
+        </ChoiceRow>
+        <ToggleRow label="Rest-over sound" checked={s.restSound} onChange={(v) => set('restSound', v)} />
+        <ToggleRow label="Haptics" checked={s.haptics} onChange={(v) => set('haptics', v)} />
+        <ToggleRow label="Other sounds" hint="pencil tick on a set, plate clank on a PR" checked={s.otherSounds} onChange={(v) => set('otherSounds', v)} />
+        <ToggleRow label="Keep the screen on during workouts" checked={s.keepAwake} onChange={(v) => set('keepAwake', v)} />
+        {android ? (
+          <Pad className="flex flex-col gap-2 py-2">
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={async () => {
+                const ok = await platform().requestNotificationPermission();
+                setNotif(ok ? 'Allowed. The rest countdown shows on the lock screen.' : 'Not allowed. The timer still works in the app.');
+              }}
+            >
+              Allow lock-screen notifications
+            </button>
+            {notif ? <p className="text-ink2">{notif}</p> : null}
+            {!exact ? (
+              <>
+                <MarginNote>Exact alarms are off, so the rest-over alert can arrive a few seconds late with the screen locked.</MarginNote>
+                <button type="button" className="btn-ghost" onClick={() => void platform().openExactAlarmSettings()}>
+                  Allow exact alarms
+                </button>
+              </>
+            ) : null}
+          </Pad>
+        ) : null}
+      </Section>
+
+      <Section title="TIMED HOLDS (AMTAP)">
+        <ToggleRow label="3-2-1 countdown before starting" checked={s.holdCountdown} onChange={(v) => set('holdCountdown', v)} />
+        <ToggleRow label="Cue at target and at your best" checked={s.holdCues} onChange={(v) => set('holdCues', v)} />
+        <ToggleRow label="Show hundredths" checked={s.holdHundredths} onChange={(v) => set('holdHundredths', v)} />
+      </Section>
+
+      <Section title="PROGRESSION">
+        <ChoiceRow label="Biggest jump between sessions">
+          <Segmented label="Jump cap" value={String(s.maxJumpPct)} onChange={(v) => set('maxJumpPct', Number(v))} options={[{ value: '0.05', label: '5%' }, { value: '0.1', label: '10%' }, { value: '0.2', label: '20%' }]} />
+        </ChoiceRow>
+      </Section>
+
+      <Section title="UPDATES">
+        <ToggleRow label="Check for new releases once a day" hint="asks GitHub for the newest version; sends nothing about you" checked={s.checkUpdates} onChange={(v) => set('checkUpdates', v)} />
+        <Pad className="py-2">
+          <button type="button" className="btn-ghost" onClick={() => navigate({ name: 'devlog' })}>
+            Dev log
+          </button>
+        </Pad>
+      </Section>
+
+      <Section title="BACKUP REMINDER">
+        <ChoiceRow label="Remind me after">
+          <Segmented label="Backup reminder" value={String(s.backupReminderDays)} onChange={(v) => set('backupReminderDays', Number(v))} options={[{ value: '7', label: '7 days' }, { value: '14', label: '14 days' }, { value: '30', label: '30 days' }, { value: '36500', label: 'Never' }]} />
+        </ChoiceRow>
+      </Section>
+    </Screen>
+  );
+}

@@ -220,6 +220,12 @@ export interface PhotoRow {
   note: string | null;
 }
 
+/** The image behind a progress photo (`PhotoRow.uri` is `photo:<id>`). On this device only: never in backups, as in 0.1.0. */
+export interface PhotoFileRow {
+  id: string;
+  blob: Blob;
+}
+
 export interface SettingRow {
   key: string;
   value: unknown;
@@ -242,6 +248,7 @@ export class AnalogDB extends Dexie {
   measurements!: Table<MeasurementRow, string>;
   photos!: Table<PhotoRow, string>;
   settings!: Table<SettingRow, string>;
+  photoFiles!: Table<PhotoFileRow, string>;
 
   constructor(name = 'analog') {
     super(name);
@@ -267,6 +274,8 @@ export class AnalogDB extends Dexie {
       photos: 'id, date',
       settings: 'key',
     });
+    // v2 (0.2.0): progress photo images live in the database instead of a folder.
+    this.version(2).stores({ photoFiles: 'id' });
   }
 }
 
