@@ -2,9 +2,17 @@
 // Copyright (c) 2026 The Analog contributors
 import { memo, useEffect, useRef } from 'react';
 import { ChartLine, History, ListChecks, Menu, NotebookPen } from 'lucide-react';
-import { closeTopOverlay, cx } from '@/components/ui';
-import { back, navigate, useNav, type Route, type Tab } from '@/features/nav';
-import { Wordmark } from '@/components/Brand';
+import { useSettings } from '@/db/settings';
+import { isTab, navigate, useNav, type Route, type Tab } from '@/features/nav';
+import { useWide } from '@/features/responsive';
+import { useGlobalShortcuts } from '@/features/shortcuts';
+import { closeTopOverlay, cx, Pad, Screen } from '@/components/ui';
+import { DialogHost } from '@/components/Dialog';
+import { Sidebar } from '@/components/Sidebar';
+import { ExercisesScreen } from '@/screens/ExercisesScreen';
+import { SummaryScreen } from '@/screens/SummaryScreen';
+import { TodayScreen } from '@/screens/TodayScreen';
+import { WorkoutScreen } from '@/screens/WorkoutScreen';
 
 const TABS: Array<{ id: Tab; label: string; icon: typeof NotebookPen; tour?: string }> = [
   { id: 'today', label: 'Log', icon: NotebookPen },
@@ -16,7 +24,13 @@ const TABS: Array<{ id: Tab; label: string; icon: typeof NotebookPen; tour?: str
 
 export function App() {
   const { route, tab } = useNav();
-  useBackKeys();
+  const wide = useWide();
+  // Like 0.1.0: pushed pages (the workout, a program, the summary…) cover the tab bar on phones.
+  const tabs = !wide && isTab(route);
+  const theme = useSettings().theme;
+  useTheme(theme);
+  useGlobalShortcuts();
+  useEscape();
 
   // Each page opens at the top.
   const mainRef = useRef<HTMLElement>(null);
@@ -26,60 +40,78 @@ export function App() {
 
   return (
     <div className="flex h-full">
-      {/* Wide screens: the open logbook, with the spine on the left. */}
-      <nav className="hidden w-[248px] shrink-0 flex-col gap-4 border-r border-rule bg-sunk p-4 wide:flex">
-        <div className="px-2 pt-2">
-          <Wordmark size={26} />
-          <div className="t-meta mt-0.5 text-pencil">The training log you own</div>
-        </div>
-        <div className="flex flex-col gap-0.5">
-          {TABS.map((t) => (
-            <button key={t.id} type="button" data-tour={t.tour} onClick={() => navigate({ name: t.id })} className={cx('t-label flex min-h-[40px] items-center gap-3 rounded-control px-3 text-[14px]', tab === t.id ? 'bg-raised text-ink' : 'text-ink2 hover:bg-raised/60')}>
-              <t.icon size={18} strokeWidth={1.75} /> {t.id === 'today' ? 'Today' : t.label}
-            </button>
-          ))}
-        </div>
-      </nav>
+      {wide ? <Sidebar /> : null}
 
-      <main ref={mainRef} className="relative flex-1 overflow-y-auto overflow-x-hidden pb-[76px] safe-pt wide:pb-0">
+      <main ref={mainRef} className={cx('relative flex-1 overflow-y-auto overflow-x-hidden safe-pt', tabs && 'pb-[76px]')}>
         <CurrentScreen route={route} />
       </main>
 
-      {/* Phones: bottom tabs. */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-rule bg-paper safe-pb wide:hidden">
-        {TABS.map((t) => (
-          <button key={t.id} type="button" data-tour={t.tour} onClick={() => navigate({ name: t.id })} className={cx('flex min-h-[62px] flex-1 flex-col items-center justify-center gap-1 text-[12px] font-medium leading-4', tab === t.id ? 'text-ink' : 'text-pencil')}>
-            <t.icon size={22} strokeWidth={1.75} />
-            {t.label}
-          </button>
-        ))}
-      </nav>
+      {!tabs ? null : (
+        <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-rule bg-paper safe-pb" aria-label="Pages">
+          {TABS.map((t) => (
+            <button key={t.id} type="button" data-tour={t.tour} aria-current={tab === t.id ? 'page' : undefined} onClick={() => navigate({ name: t.id })} className={cx('flex min-h-[62px] flex-1 flex-col items-center justify-center gap-1 text-[12px] font-medium leading-4', tab === t.id ? 'text-ink' : 'text-pencil')}>
+              <t.icon size={22} strokeWidth={1.75} />
+              {t.label}
+            </button>
+          ))}
+        </nav>
+      )}
+
+      <DialogHost />
     </div>
   );
 }
 
+/** Memoised so shell-level updates (rest ticks, the spine) never re-render the page. */
 const CurrentScreen = memo(function CurrentScreen({ route }: { route: Route }) {
-  return (
-    <div key={route.name} className="mx-auto max-w-[880px] px-margin pt-9">
-      <h1 className="t-title-l">{route.name}</h1>
-    </div>
-  );
+  switch (route.name) {
+    case 'today':
+      return <TodayScreen />;
+    case 'workout':
+      return <WorkoutScreen key={route.id} id={route.id} />;
+    case 'summary':
+      return <SummaryScreen key={route.id} id={route.id} />;
+    case 'exercises':
+      return <ExercisesScreen key={JSON.stringify(route)} pick={route.pick} swap={route.swap} target={route.target} picker={route.picker} />;
+    default:
+      return <NotYet name={route.name} />;
+  }
 });
 
-/** Esc on desktop and the Android back button: close the newest sheet first, then walk the page stack. */
-function useBackKeys() {
+function NotYet({ name }: { name: string }) {
+  return (
+    <Screen title={name} backButton>
+      <Pad>
+        <p className="text-ink2">This page is part of a later phase of the rebuild.</p>
+      </Pad>
+    </Screen>
+  );
+}
+
+/** Carbon (dark, default), Paper (light) or System: one attribute on <html> swaps every token. */
+function useTheme(theme: 'carbon' | 'paper' | 'system') {
   useEffect(() => {
-    const onBack = (e: Event) => {
-      if (closeTopOverlay() || back()) e.preventDefault();
+    const media = window.matchMedia('(prefers-color-scheme: light)');
+    const apply = () => {
+      const resolved = theme === 'system' ? (media.matches ? 'paper' : 'carbon') : theme;
+      document.documentElement.dataset.theme = resolved;
+      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', resolved === 'paper' ? '#F6F1E7' : '#17181C');
     };
+    apply();
+    if (theme !== 'system') return;
+    media.addEventListener('change', apply);
+    return () => media.removeEventListener('change', apply);
+  }, [theme]);
+}
+
+/** Esc closes the newest sheet or dialog (desktop). The Android back button goes through handleBack in boot. */
+function useEscape() {
+  useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && closeTopOverlay()) e.preventDefault();
     };
-    window.addEventListener('analog:back', onBack);
     window.addEventListener('keydown', onKey);
-    return () => {
-      window.removeEventListener('analog:back', onBack);
-      window.removeEventListener('keydown', onKey);
-    };
+    return () => window.removeEventListener('keydown', onKey);
   }, []);
 }
+

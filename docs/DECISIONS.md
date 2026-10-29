@@ -27,3 +27,13 @@ Choices made while rebuilding Analog 0.2.0 on the Promodoro stack, with the reas
 - **Tour sample data**: screens read through `readDb()`, which returns the tour's throwaway sample database while it is shown; writes always name the user's `db`. Replaces 0.1.0's proxy over Drizzle.
 - **Automatic backups**: one file per day (`analog-backup-YYYY-MM-DD.json`), written after every finished workout (rewriting that day's file) and at launch when the newest is from an earlier day and there is data; the newest 7 are kept. They go to the app's own files (Android: `files/backups`, included in Android Auto Backup; Windows: the app's data folder). Backup and export lists them for restoring. When it last ran is kept in a new device-only setting, `autoBackupAt`, which backups leave out like the other device-only settings.
 - **Not carried over:** `shareEqual` (structural sharing for synchronous reads) and the sql.js test. Dexie's live queries replace both.
+
+## App shell and the workout logger
+
+- **Reads use Dexie live queries** (`useData` in `src/features/data.ts`), so a screen re-reads when a table it read changes. This replaces 0.1.0's data-version counter and `useQuery`.
+- **Writes from the workout screen go to `editDb()`**: the user's database, or the tour's sample while the tour shows its sample workout, so the tour can be tried out by ticking sets without touching the user's data.
+- **Pushed pages cover the phone tab bar**, as 0.1.0's stack screens did; tabs show only on the five tab pages.
+- **After a reload or a relaunch the app opens on Today**, which offers the open workout under "In progress" (and the spine shows it on wide screens). 0.1.0's browser build kept the URL; the native apps never did.
+- **The rest timer lives in memory**, as in 0.1.0: a reload drops the in-app ring. On Android the native countdown and alarm keep going and the next resume reads them back (`drainActions`).
+- **The exercise list draws 120 rows at a time** with "Show more", instead of a virtualised list library.
+- **Small zustand stores became `createStore`** (`src/features/store.ts`), a 20-line useSyncExternalStore store in Promodoro's style; no state library.

@@ -24,6 +24,14 @@ export function readDb(): AnalogDB {
   return shown ?? db;
 }
 
+/**
+ * Where edits made on the open screen go. Normally the user's database; while the tour shows its sample workout,
+ * ticking a sample set changes the sample, so the tour can be tried out without touching the user's data.
+ */
+export function editDb(): AnalogDB {
+  return shown ?? db;
+}
+
 /** True while the tour's sample is on screen: nothing should leave the app about it (notifications, say). */
 export function sampleShown(): boolean {
   return shown != null;

@@ -16,7 +16,7 @@ export type Route =
   | { name: 'programShare'; id: string }
   | { name: 'programImport'; data: string }
   | { name: 'mesoReport'; runId?: string }
-  | { name: 'exercises'; pick?: string }
+  | { name: 'exercises'; pick?: string; swap?: string; target?: string; workout?: string; picker?: string }
   | { name: 'exercise'; id: string }
   | { name: 'exerciseEdit'; id?: string }
   | { name: 'gyms' }
