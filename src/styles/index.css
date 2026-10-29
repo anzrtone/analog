@@ -1,0 +1,143 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* Copyright (c) 2026 The Analog contributors */
+/* Fonts are bundled (never fetched): the app works fully offline inside Tauri and Capacitor. BRAND §5. */
+@import '@fontsource/newsreader/latin-500.css';
+@import '@fontsource/ibm-plex-mono/latin-400.css';
+@import '@fontsource/ibm-plex-mono/latin-500.css';
+@import '@fontsource/inter/latin-400.css';
+@import '@fontsource/inter/latin-500.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---------- Analog tokens (RGB channels), BRAND §4 and §14 ---------- */
+/* tests/theme-css.test.ts checks every value here against src/theme/tokens.ts. */
+
+/* Carbon (dark) is the default theme. */
+:root,
+:root[data-theme='carbon'] {
+  --paper: 23 24 28; /* #17181C */
+  --paper-raised: 31 32 37; /* #1F2025 */
+  --paper-sunk: 18 19 22; /* #121316 */
+  --rule: 44 45 51; /* #2C2D33 */
+  --ink: 236 230 216; /* #ECE6D8 */
+  --ink-2: 189 183 169; /* #BDB7A9 */
+  --pencil: 140 138 130; /* #8C8A82 */
+  --erased: 90 88 82; /* #5A5852 */
+  --red-ring: 232 97 94; /* #E8615E */
+  --red-text: 244 160 157; /* #F4A09D */
+  --blue-ring: 79 147 222; /* #4F93DE */
+  --blue-text: 147 189 238; /* #93BDEE */
+  --yellow-ring: 240 169 58; /* #F0A93A */
+  --yellow-text: 246 200 120; /* #F6C878 */
+  --green-ring: 90 174 85; /* #5AAE55 */
+  --green-text: 154 211 148; /* #9AD394 */
+  --white-ring: 109 108 104; /* #6D6C68 */
+  --white-text: 168 165 156; /* #A8A59C */
+  color-scheme: dark;
+}
+
+/* Paper (light). */
+:root[data-theme='paper'] {
+  --paper: 246 241 231; /* #F6F1E7 */
+  --paper-raised: 251 248 241; /* #FBF8F1 */
+  --paper-sunk: 237 230 214; /* #EDE6D6 */
+  --rule: 217 209 191; /* #D9D1BF */
+  --ink: 35 50 74; /* #23324A */
+  --ink-2: 79 90 110; /* #4F5A6E */
+  --pencil: 105 102 94; /* #69665E */
+  --erased: 169 164 150; /* #A9A496 */
+  --red-ring: 217 63 60; /* #D93F3C */
+  --red-text: 163 45 45; /* #A32D2D */
+  --blue-ring: 47 123 208; /* #2F7BD0 */
+  --blue-text: 24 95 165; /* #185FA5 */
+  --yellow-ring: 177 118 24; /* #B17618 */
+  --yellow-text: 138 90 12; /* #8A5A0C */
+  --green-ring: 62 142 58; /* #3E8E3A */
+  --green-text: 44 107 40; /* #2C6B28 */
+  --white-ring: 133 130 116; /* #858274 */
+  --white-text: 103 101 94; /* #67655E */
+  color-scheme: light;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-paper font-ui text-ink antialiased;
+  font-size: 15px;
+  line-height: 22px;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+button {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+::selection {
+  background: rgb(var(--ink) / 0.25);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--rule)) transparent;
+}
+
+:focus-visible {
+  outline: 2px solid rgb(var(--ink) / 0.7);
+  outline-offset: 2px;
+}
+
+/* A completed ring closes like a pen circle (BRAND §9). */
+@keyframes ring-draw {
+  from {
+    stroke-dashoffset: var(--circ);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* BRAND §9: honour "remove animations". */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+@layer components {
+  /* Type scale, BRAND §5. Every number is tabular. */
+  .t-display { @apply font-num tabular; font-size: 48px; line-height: 52px; font-weight: 500; }
+  .t-title-l { @apply font-title; font-size: 28px; line-height: 34px; font-weight: 500; }
+  .t-title-m { @apply font-title; font-size: 20px; line-height: 26px; font-weight: 500; }
+  .t-num-l { @apply font-num tabular; font-size: 20px; line-height: 24px; font-weight: 500; }
+  .t-num-m { @apply font-num tabular; font-size: 16px; line-height: 20px; font-weight: 400; }
+  .t-body { @apply font-ui; font-size: 15px; line-height: 22px; font-weight: 400; }
+  .t-label { @apply font-ui; font-size: 13px; line-height: 18px; font-weight: 500; }
+  .t-hint { @apply font-ui text-pencil; font-size: 13px; line-height: 18px; font-weight: 400; }
+  .t-meta { @apply font-num tabular uppercase; font-size: 11px; line-height: 14px; font-weight: 400; letter-spacing: 0.06em; }
+
+  /* Buttons, BRAND §7: one primary per screen, no coloured buttons. */
+  .btn { @apply inline-flex min-h-touch min-w-touch cursor-pointer select-none items-center justify-center gap-2 rounded-control px-[18px] font-ui transition-[transform,background-color,opacity] duration-100; font-size: 15px; line-height: 18px; font-weight: 500; }
+  .btn:active:not(:disabled) { transform: scale(0.97); }
+  .btn:disabled { @apply cursor-not-allowed opacity-45; }
+  .btn-primary { @apply btn bg-ink text-paper hover:bg-ink/90; }
+  .btn-secondary { @apply btn border border-ink text-ink hover:bg-sunk; }
+  .btn-ghost { @apply btn text-ink2 hover:bg-sunk; }
+  .btn-danger { @apply btn border border-red-text text-red-text hover:bg-sunk; }
+  .btn-compact { @apply px-3; }
+
+  .field { @apply min-h-touch w-full rounded-control bg-sunk px-3 font-ui text-ink outline-none placeholder:text-pencil focus:ring-1 focus:ring-ink/50; font-size: 15px; }
+  .ruled-row { @apply flex min-h-row items-center gap-3 border-b border-rule px-margin py-2; }
+  .pressable { @apply cursor-pointer transition-colors hover:bg-sunk active:bg-sunk; }
+}

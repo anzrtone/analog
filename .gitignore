@@ -1,0 +1,18 @@
+node_modules/
+dist/
+build/
+.env
+.env.*
+*.log
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Analog
+src-tauri/target/
+src-tauri/gen/schemas/
+*.keystore
+*.jks
+android/keystore.properties
+coverage/
