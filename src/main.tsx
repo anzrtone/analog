@@ -45,6 +45,9 @@ async function boot() {
   // A full backup at launch when today's isn't written yet (and there is something to keep).
   void runAutoBackup(db, p, 'launch');
 
+  // Dev builds: a handle for scripted walk-throughs (scripts/browse.mjs).
+  if (import.meta.env.DEV) Object.assign(window, { analog: { navigate, db } });
+
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
       <App />

@@ -37,3 +37,12 @@ Choices made while rebuilding Analog 0.2.0 on the Promodoro stack, with the reas
 - **The rest timer lives in memory**, as in 0.1.0: a reload drops the in-app ring. On Android the native countdown and alarm keep going and the next resume reads them back (`drainActions`).
 - **The exercise list draws 120 rows at a time** with "Show more", instead of a virtualised list library.
 - **Small zustand stores became `createStore`** (`src/features/store.ts`), a 20-line useSyncExternalStore store in Promodoro's style; no state library.
+
+## Programs, history, stats and share cards
+
+- **Share cards are SVG strings** (`src/features/share/cards.ts`) laid out on a 360-wide ruled page and exported at 1080 px through a canvas (`render.ts`). The preview on screen is the same SVG as an image, so what you see is what is shared. The bundled fonts are inlined into the SVG (an SVG drawn as an image can't use the page's fonts); they are read from the app's own files, never the network. All six 0.1.0 cards exist: workout, PR, program (with its QR code), exercise progress, meso recap and Wrapped.
+- **Sharing**: Android shares the PNG through the share sheet (Capacitor Share, from which it can be saved); Windows saves it with the Save dialog. 0.1.0's separate "Save to gallery" button needed a media-library permission and is folded into the share sheet.
+- **Program links on Windows and in the dev build are copied to the clipboard**, as 0.1.0's desktop build did; Android uses the share sheet.
+- **The muscle heatmap is a schematic body drawn in SVG** (`src/components/Heatmap.tsx`). 0.1.0 used `react-native-body-highlighter`, which only runs in React Native. Same regions, same mapping (a region shows its hardest-worked muscle), one red hue in five opacity steps.
+- **The exercise picker hands back its choice through a token that carries where it goes** (`builder|program|block|day|slot`), because the builder unmounts while the library page is open.
+- **Wide-screen screenshots are taken with headless Edge** driven over the DevTools protocol (`scripts/browse.mjs`, walks in `scripts/walks/`), because the app's browser pane crops wide viewports at small window sizes. Edge was already installed; nothing new was installed.

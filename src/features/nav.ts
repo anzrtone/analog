@@ -27,11 +27,13 @@ export type Route =
   | { name: 'settings' }
   | { name: 'about' }
   | { name: 'devlog' }
-  | { name: 'share'; kind: 'workout' | 'pr' | 'program'; id: string }
+  | { name: 'share'; kind: ShareKind; id: string }
   | { name: 'admin' }
   | { name: 'kitchen' };
 
 export type RouteName = Route['name'];
+/** Share cards: `id` is a workout, PR, program or exercise id; "month" or "year" for Wrapped; a run id (or "") for the meso recap. */
+export type ShareKind = 'workout' | 'pr' | 'program' | 'progress' | 'meso' | 'wrapped';
 
 export const TABS: Tab[] = ['today', 'history', 'programs', 'stats', 'more'];
 export const isTab = (r: Route): r is { name: Tab } => (TABS as string[]).includes(r.name);

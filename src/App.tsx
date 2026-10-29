@@ -10,6 +10,13 @@ import { closeTopOverlay, cx, Pad, Screen } from '@/components/ui';
 import { DialogHost } from '@/components/Dialog';
 import { Sidebar } from '@/components/Sidebar';
 import { ExercisesScreen } from '@/screens/ExercisesScreen';
+import { HistoryScreen, WorkoutDetailView } from '@/screens/HistoryScreen';
+import { MesoReportScreen } from '@/screens/MesoReportScreen';
+import { ProgramBuilderScreen } from '@/screens/ProgramBuilderScreen';
+import { ProgramShareScreen } from '@/screens/ProgramShareScreen';
+import { NewProgramScreen, ProgramImportScreen, ProgramsScreen } from '@/screens/ProgramsScreen';
+import { ShareScreen } from '@/screens/ShareScreen';
+import { StatsScreen } from '@/screens/StatsScreen';
 import { SummaryScreen } from '@/screens/SummaryScreen';
 import { TodayScreen } from '@/screens/TodayScreen';
 import { WorkoutScreen } from '@/screens/WorkoutScreen';
@@ -73,6 +80,24 @@ const CurrentScreen = memo(function CurrentScreen({ route }: { route: Route }) {
       return <SummaryScreen key={route.id} id={route.id} />;
     case 'exercises':
       return <ExercisesScreen key={JSON.stringify(route)} pick={route.pick} swap={route.swap} target={route.target} picker={route.picker} />;
+    case 'history':
+      return <HistoryScreen />;
+    case 'workoutDetail':
+      return <WorkoutDetailView key={route.id} id={route.id} page />;
+    case 'programs':
+      return <ProgramsScreen />;
+    case 'program':
+      return route.id === 'new' ? <NewProgramScreen /> : <ProgramBuilderScreen key={route.id} id={route.id} />;
+    case 'programShare':
+      return <ProgramShareScreen key={route.id} id={route.id} />;
+    case 'programImport':
+      return <ProgramImportScreen data={route.data} />;
+    case 'mesoReport':
+      return <MesoReportScreen runId={route.runId} />;
+    case 'stats':
+      return <StatsScreen />;
+    case 'share':
+      return <ShareScreen key={`${route.kind}:${route.id}`} kind={route.kind} id={route.id} />;
     default:
       return <NotYet name={route.name} />;
   }
