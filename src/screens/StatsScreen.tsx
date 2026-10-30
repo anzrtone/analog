@@ -57,7 +57,7 @@ export function periodRange(period: Period, offset: number, origin: number, nowM
 }
 
 export function StatsScreen() {
-  const unit = useSettings().unit;
+  const { unit, bodyFigure } = useSettings();
   const [now] = useState(() => Date.now());
   const [{ period, offset, epoch }, setNav] = useState<{ period: Period; offset: number; epoch: number }>({ period: 'week', offset: 0, epoch: 0 });
   const firstAt = useData((d) => firstWorkoutAt(d), [], null as number | null);
@@ -136,7 +136,7 @@ export function StatsScreen() {
         </Pad>
         {muscles.length ? (
           <div className="pt-4">
-            <Heatmap sets={vol} />
+            <Heatmap sets={vol} figure={bodyFigure} />
           </div>
         ) : null}
       </Section>

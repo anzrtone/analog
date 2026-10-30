@@ -16,6 +16,8 @@ const plate = (name) => ({ ring: token(`${name}-ring`), text: token(`${name}-tex
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
+  // hover: styles only where a pointer can hover, so a tapped cell on a phone doesn't stay shaded after the tap.
+  future: { hoverOnlyWhenSupported: true },
   theme: {
     colors: {
       transparent: 'transparent',

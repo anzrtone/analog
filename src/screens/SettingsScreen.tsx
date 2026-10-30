@@ -58,6 +58,9 @@ export function SettingsScreen() {
         <ChoiceRow label="Theme">
           <Segmented label="Theme" value={s.theme} onChange={(v) => set('theme', v)} options={[{ value: 'carbon', label: 'Carbon' }, { value: 'paper', label: 'Paper' }, { value: 'system', label: 'System' }]} />
         </ChoiceRow>
+        <ChoiceRow label="Muscle map">
+          <Segmented label="Muscle map" value={s.bodyFigure} onChange={(v) => set('bodyFigure', v)} options={[{ value: 'male', label: 'Male' }, { value: 'female', label: 'Female' }]} />
+        </ChoiceRow>
         <ChoiceRow label="Clock">
           <Segmented label="Clock" value={s.clock} onChange={(v) => set('clock', v)} options={[{ value: '12h', label: '6:30 PM' }, { value: '24h', label: '18:30' }]} />
         </ChoiceRow>

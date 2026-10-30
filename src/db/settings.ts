@@ -16,6 +16,8 @@ export interface AppSettings {
   theme: 'carbon' | 'paper' | 'system';
   /** 12-hour (AM/PM) or 24-hour times of day. */
   clock: ClockFormat;
+  /** Which body the muscle map on Stats draws (new in 0.2.0; 0.1.0 always drew the male one). */
+  bodyFigure: 'male' | 'female';
   restSound: boolean;
   otherSounds: boolean;
   haptics: boolean;
@@ -84,6 +86,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   effort: 'rir',
   theme: 'carbon',
   clock: '12h',
+  bodyFigure: 'male',
   restSound: true,
   otherSounds: false,
   haptics: true,

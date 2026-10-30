@@ -77,7 +77,7 @@ export function AboutScreen() {
           <button type="button" className="btn-ghost" onClick={() => void openLink(ISSUES_URL)}>
             Suggest a feature or report a bug
           </button>
-          <MarginNote>Exercise library: free-exercise-db (Unlicense). Fonts: Newsreader, IBM Plex Mono and Inter (SIL Open Font License). Icons: Lucide (ISC).</MarginNote>
+          <MarginNote>Exercise library: free-exercise-db (Unlicense). Fonts: Newsreader, IBM Plex Mono and Inter (SIL Open Font License). Icons: Lucide (ISC). Muscle map: react-native-body-highlighter artwork by ELABBASSI Hicham (MIT).</MarginNote>
           <MarginNote>Adaptive volume uses Analog’s own published rules: feedback scores, MEV/MRV clamps, and the reason behind every change, shown in the app.</MarginNote>
           <MarginNote>Saved to {platform().storageLabel}.</MarginNote>
         </Pad>

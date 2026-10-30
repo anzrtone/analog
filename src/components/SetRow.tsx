@@ -100,21 +100,25 @@ export const SetRow = memo(function SetRow({ set, index, prev, unit, effort, mod
         <span className="flex w-9 shrink-0 justify-center" data-tour={tour ? 'set-ring' : undefined}>
           <SetTypeRing type={set.type} index={index} state={done ? 'done' : 'pending'} onClick={() => onRing(set)} label={`${a11y}. Change set type`} />
         </span>
-        <span className={cx('t-num-m line-clamp-2 shrink-0 text-pencil', wide ? 'w-[120px] text-[14px]' : 'w-[72px] text-[13px]')} aria-label={prev ? `Last time ${prevText}` : 'No previous set'}>
-          {prevText}
-          {set.side ? ` ${set.side}` : ''}
-        </span>
-        {timed ? (
-          <>
-            {mode !== 'time' || (w ?? 0) > 0 ? <Cell text={weightText} ghost={ghostW} onClick={() => onEdit(set, 'weight')} label={`Load ${weightText}`} /> : <span className="flex-1" />}
-            <Cell text={time != null ? formatClock(time) : info.openEnded ? 'start' : '—'} ghost={ghostT} onClick={() => onEdit(set, 'time')} label={info.openEnded ? 'Start the stopwatch' : 'Time'} grow={1.3} tour={tour ? 'set-values' : undefined} />
-          </>
-        ) : (
-          <span className="flex min-w-0" style={{ flex: 2.2 }} data-tour={tour ? 'set-values' : undefined}>
-            <Cell text={weightText} ghost={ghostW} onClick={() => onEdit(set, 'weight')} label={`Weight ${weightText}`} grow={1.2} />
-            <Cell text={repsText} ghost={ghostR} onClick={() => onEdit(set, 'reps')} label={`Reps ${repsText}`} />
+        {/* Last time and today's values sit in one span, so the tour's spotlight takes in both. Its basis is the
+            previous column's width, so the columns still line up with SetColumns. */}
+        <span className="flex min-w-0 items-center" style={{ flex: `${timed ? 2.3 : 2.2} 1 ${wide ? 120 : 72}px` }} data-tour={tour ? 'set-values' : undefined}>
+          <span className={cx('t-num-m line-clamp-2 shrink-0 text-pencil', wide ? 'w-[120px] text-[14px]' : 'w-[72px] text-[13px]')} aria-label={prev ? `Last time ${prevText}` : 'No previous set'}>
+            {prevText}
+            {set.side ? ` ${set.side}` : ''}
           </span>
-        )}
+          {timed ? (
+            <>
+              {mode !== 'time' || (w ?? 0) > 0 ? <Cell text={weightText} ghost={ghostW} onClick={() => onEdit(set, 'weight')} label={`Load ${weightText}`} /> : <span className="flex-1" />}
+              <Cell text={time != null ? formatClock(time) : info.openEnded ? 'start' : '—'} ghost={ghostT} onClick={() => onEdit(set, 'time')} label={info.openEnded ? 'Start the stopwatch' : 'Time'} grow={1.3} />
+            </>
+          ) : (
+            <>
+              <Cell text={weightText} ghost={ghostW} onClick={() => onEdit(set, 'weight')} label={`Weight ${weightText}`} grow={1.2} />
+              <Cell text={repsText} ghost={ghostR} onClick={() => onEdit(set, 'reps')} label={`Reps ${repsText}`} />
+            </>
+          )}
+        </span>
         <Cell text={effortText} ghost={ghostE} onClick={() => onEdit(set, 'rir')} label={`${effort.toUpperCase()} ${effortText}`} grow={0.7} />
         <button type="button" onClick={() => onMore(set)} aria-label="More set options" className="inline-flex h-touch w-8 shrink-0 items-center justify-center text-pencil hover:text-ink2">
           <Ellipsis size={18} strokeWidth={1.75} />

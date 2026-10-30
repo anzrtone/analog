@@ -32,39 +32,44 @@ export function PlateRing({ color, state, letter, glyph, progress = 0.5, size = 
   const r = (size - stroke) / 2;
   const circ = 2 * Math.PI * r;
   const c = size / 2;
-  const inner = glyph ? (
-    <Glyph name={glyph} size={size * 0.46} color={text} />
-  ) : letter ? (
-    <span className="font-num tabular leading-none" style={{ fontWeight: 500, fontSize: letter.length > 1 ? 8.5 : 11, letterSpacing: letter.length > 1 ? -0.4 : 0, color: text }}>
-      {letter}
-    </span>
-  ) : null;
-
+  const fontSize = letter && letter.length > 1 ? size * 0.36 : size * 0.46;
+  const ink = letter ? inkCentre(letter, fontSize) : null;
   const body = (
     <span className={`relative inline-flex shrink-0 items-center justify-center ${className ?? ''}`} style={{ width: size, height: size }} role={onClick ? undefined : 'img'} aria-label={onClick ? undefined : label}>
-      <svg width={size} height={size} className="absolute inset-0 -rotate-90" aria-hidden>
-        {state === 'pending' && <circle cx={c} cy={c} r={r} stroke={ring} strokeWidth={stroke} strokeDasharray="4 3" fill="none" />}
-        {state === 'progress' && (
-          <>
-            <circle cx={c} cy={c} r={r} stroke={ring} strokeWidth={stroke} strokeDasharray="4 3" fill="none" opacity={0.5} />
-            <circle cx={c} cy={c} r={r} stroke={ring} strokeWidth={stroke} strokeDasharray={`${circ} ${circ}`} strokeDashoffset={circ * (1 - Math.max(0, Math.min(1, progress)))} fill="none" />
-          </>
-        )}
-        {state === 'done' && (
-          <circle
-            cx={c}
-            cy={c}
-            r={r}
-            stroke={ring}
-            strokeWidth={stroke}
-            fill={filled ? ring : 'none'}
-            strokeDasharray={`${circ} ${circ}`}
-            className="transition-[stroke-dashoffset] duration-[220ms] ease-out"
-            style={{ strokeDashoffset: 0, animation: 'ring-draw 220ms ease-out both', ['--circ' as string]: circ }}
-          />
-        )}
+      <svg width={size} height={size} className="absolute inset-0 block" aria-hidden>
+        <g transform={`rotate(-90 ${c} ${c})`}>
+          {state === 'pending' && <circle cx={c} cy={c} r={r} stroke={ring} strokeWidth={stroke} strokeDasharray="4 3" fill="none" />}
+          {state === 'progress' && (
+            <>
+              <circle cx={c} cy={c} r={r} stroke={ring} strokeWidth={stroke} strokeDasharray="4 3" fill="none" opacity={0.5} />
+              <circle cx={c} cy={c} r={r} stroke={ring} strokeWidth={stroke} strokeDasharray={`${circ} ${circ}`} strokeDashoffset={circ * (1 - Math.max(0, Math.min(1, progress)))} fill="none" />
+            </>
+          )}
+          {state === 'done' && (
+            <circle
+              cx={c}
+              cy={c}
+              r={r}
+              stroke={ring}
+              strokeWidth={stroke}
+              fill={filled ? ring : 'none'}
+              strokeDasharray={`${circ} ${circ}`}
+              className="transition-[stroke-dashoffset] duration-[220ms] ease-out"
+              style={{ strokeDashoffset: 0, animation: 'ring-draw 220ms ease-out both', ['--circ' as string]: circ }}
+            />
+          )}
+        </g>
+        {ink ? (
+          <text x={c + ink.dx} y={c + ink.dy} fill={text} fontSize={fontSize} fontWeight={500} letterSpacing={letter!.length > 1 ? -0.4 : 0} className="font-num">
+            {letter}
+          </text>
+        ) : null}
       </svg>
-      <span className="relative">{inner}</span>
+      {glyph ? (
+        <span className="absolute inset-0 flex items-center justify-center">
+          <Glyph name={glyph} size={size * 0.46} color={text} />
+        </span>
+      ) : null}
     </span>
   );
 
@@ -74,6 +79,32 @@ export function PlateRing({ color, state, letter, glyph, progress = 0.5, size = 
       {body}
     </button>
   );
+}
+
+const metrics = new Map<string, { dx: number; dy: number }>();
+let canvas: HTMLCanvasElement | null = null;
+
+/**
+ * Where to put a letter's baseline so its ink, not its em box, sits in the middle of the ring: "w" and "T" have
+ * different heights, and the browser's own centring lines up the em box, which leaves every letter a little high.
+ * Measured once per letter in Plex Mono at 100 px and scaled; a rough cap or x-height guess until the font has loaded.
+ */
+function inkCentre(letter: string, fontSize: number): { dx: number; dy: number } {
+  let m = metrics.get(letter);
+  if (!m) {
+    const font = '500 100px "IBM Plex Mono"';
+    const ctx = typeof document !== 'undefined' && document.fonts?.check(font) ? (canvas ??= document.createElement('canvas')).getContext('2d') : null;
+    if (ctx) {
+      ctx.font = font;
+      const t = ctx.measureText(letter);
+      m = { dx: (t.actualBoundingBoxLeft - t.actualBoundingBoxRight) / 200, dy: (t.actualBoundingBoxAscent - t.actualBoundingBoxDescent) / 200 };
+      metrics.set(letter, m);
+    } else {
+      m = { dx: -0.3 * letter.length, dy: /^[a-z]+$/.test(letter) ? 0.27 : 0.35 };
+    }
+  }
+  // The -0.4 px tracking on two-letter marks pulls the ink left by half of it per gap.
+  return { dx: m.dx * fontSize + 0.2 * (letter.length - 1), dy: m.dy * fontSize };
 }
 
 /** Ring for a set type, with the letter or glyph from the registry. */

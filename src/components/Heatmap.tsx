@@ -2,104 +2,141 @@
 // Copyright (c) 2026 The Analog contributors
 import { useState } from 'react';
 import { MUSCLE_LABEL, type Muscle } from '@/engine/types';
+import { bodyBack } from './body/bodyBack';
+import { bodyFemaleBack } from './body/bodyFemaleBack';
+import { bodyFemaleFront } from './body/bodyFemaleFront';
+import { bodyFront } from './body/bodyFront';
+import { OUTLINES } from './body/outlines';
+import type { BodyPart } from './body/types';
 import { cx } from './ui';
 
-// A pencil-outline body, front and back, one hue (red) in 5 opacity steps (BRAND §4.6). Never a rainbow.
-// 0.1.0 used react-native-body-highlighter, which only runs in React Native; this is a schematic drawing
-// with the same regions and the same rule: a region takes the hardest-worked of the muscles mapped onto it.
+// The anatomical front and back body 0.1.0 drew (react-native-body-highlighter, MIT, copied as path data into
+// ./body), one hue (red) in 5 opacity steps (BRAND §4.6). Never a rainbow. The library's regions are coarser than
+// ours, so a region takes the hardest-worked of the muscles that map onto it.
 
-type Shape = { kind: 'ellipse'; cx: number; cy: number; rx: number; ry: number } | { kind: 'rect'; x: number; y: number; w: number; h: number; r: number };
-interface Region {
-  id: string;
-  label: string;
-  muscles: Muscle[];
-  shapes: Shape[];
-}
+type Side = 'front' | 'back';
+export type BodyFigure = 'male' | 'female';
 
-const e = (cx: number, cy: number, rx: number, ry: number): Shape => ({ kind: 'ellipse', cx, cy, rx, ry });
-const r = (x: number, y: number, w: number, h: number, rr = 6): Shape => ({ kind: 'rect', x, y, w, h, r: rr });
-/** Left and right copies around the body's centre line (x = 60). */
-const pair = (s: Shape): Shape[] => (s.kind === 'ellipse' ? [s, { ...s, cx: 120 - s.cx }] : [s, { ...s, x: 120 - s.x - s.w }]);
+const REGIONS: Record<Side, [string, Muscle[]][]> = {
+  front: [
+    ['neck', ['neckFlexors']],
+    ['trapezius', ['traps']],
+    ['deltoids', ['frontDelts', 'sideDelts']],
+    ['chest', ['chest']],
+    ['biceps', ['biceps']],
+    ['forearm', ['forearmFlexors']],
+    ['abs', ['abs']],
+    ['obliques', ['obliques']],
+    ['adductors', ['adductors']],
+    ['quadriceps', ['quads', 'abductors']],
+  ],
+  back: [
+    ['neck', ['neckExtensors']],
+    ['trapezius', ['traps']],
+    ['deltoids', ['rearDelts']],
+    ['upper-back', ['upperBack']],
+    ['triceps', ['triceps']],
+    ['forearm', ['forearmExtensors']],
+    ['lower-back', ['lowerBack']],
+    ['gluteal', ['glutes']],
+    ['hamstring', ['hamstrings']],
+    ['calves', ['calves']],
+  ],
+};
 
-const FRONT: Region[] = [
-  { id: 'neck', label: 'neck', muscles: ['neckFlexors'], shapes: [r(53, 30, 14, 10, 4)] },
-  { id: 'traps', label: 'traps', muscles: ['traps'], shapes: pair(e(44, 42, 10, 4)) },
-  { id: 'delts', label: 'shoulders', muscles: ['frontDelts', 'sideDelts'], shapes: pair(e(30, 50, 9, 9)) },
-  { id: 'chest', label: 'chest', muscles: ['chest'], shapes: pair(e(48, 58, 12, 9)) },
-  { id: 'biceps', label: 'biceps', muscles: ['biceps'], shapes: pair(e(25, 72, 6, 12)) },
-  { id: 'forearms', label: 'forearms', muscles: ['forearmFlexors'], shapes: pair(e(20, 98, 5, 13)) },
-  { id: 'abs', label: 'abs', muscles: ['abs'], shapes: [r(51, 70, 18, 34, 5)] },
-  { id: 'obliques', label: 'obliques', muscles: ['obliques'], shapes: pair(e(42, 88, 6, 14)) },
-  { id: 'adductors', label: 'adductors', muscles: ['adductors'], shapes: pair(e(55, 128, 4, 14)) },
-  { id: 'quads', label: 'quads', muscles: ['quads', 'abductors'], shapes: pair(e(45, 136, 9, 24)) },
-  { id: 'calves', label: 'shins', muscles: [], shapes: pair(e(46, 182, 6, 18)) },
-];
+const REGION_LABEL: Record<string, string> = {
+  neck: 'neck',
+  deltoids: 'shoulders',
+  chest: 'chest',
+  biceps: 'biceps',
+  triceps: 'triceps',
+  forearm: 'forearms',
+  abs: 'abs',
+  obliques: 'obliques',
+  adductors: 'adductors',
+  quadriceps: 'quads',
+  trapezius: 'traps',
+  'upper-back': 'upper back',
+  'lower-back': 'lower back',
+  gluteal: 'glutes',
+  hamstring: 'hamstrings',
+  calves: 'calves',
+};
 
-const BACK: Region[] = [
-  { id: 'neck', label: 'neck', muscles: ['neckExtensors'], shapes: [r(53, 30, 14, 10, 4)] },
-  { id: 'traps', label: 'traps', muscles: ['traps'], shapes: [{ kind: 'rect', x: 44, y: 38, w: 32, h: 18, r: 8 }] },
-  { id: 'delts', label: 'shoulders', muscles: ['rearDelts'], shapes: pair(e(30, 50, 9, 9)) },
-  { id: 'upperBack', label: 'upper back', muscles: ['upperBack'], shapes: pair(e(46, 70, 11, 15)) },
-  { id: 'triceps', label: 'triceps', muscles: ['triceps'], shapes: pair(e(25, 72, 6, 12)) },
-  { id: 'forearms', label: 'forearms', muscles: ['forearmExtensors'], shapes: pair(e(20, 98, 5, 13)) },
-  { id: 'lowerBack', label: 'lower back', muscles: ['lowerBack'], shapes: [r(50, 88, 20, 16, 6)] },
-  { id: 'glutes', label: 'glutes', muscles: ['glutes'], shapes: pair(e(50, 114, 10, 10)) },
-  { id: 'hamstrings', label: 'hamstrings', muscles: ['hamstrings'], shapes: pair(e(46, 142, 8, 20)) },
-  { id: 'calves', label: 'calves', muscles: ['calves'], shapes: pair(e(46, 182, 6, 16)) },
-];
+const BODIES: Record<BodyFigure, Record<Side, BodyPart[]>> = {
+  male: { front: bodyFront, back: bodyBack },
+  female: { front: bodyFemaleFront, back: bodyFemaleBack },
+};
 
 const STEPS = [0.18, 0.36, 0.54, 0.72, 0.9];
-/** The body outline the regions sit in. */
-const OUTLINE = 'M60 6 a12 12 0 1 1 0 24 a12 12 0 1 1 0 -24 M48 32 L20 44 L10 108 L18 110 L30 64 L38 62 L36 112 L40 206 L54 206 L58 120 L62 120 L66 206 L80 206 L84 112 L82 62 L90 64 L102 110 L110 108 L100 44 L72 32 Z';
 
-function Shapes({ shapes, fill, active }: { shapes: Shape[]; fill: string; active: boolean }) {
-  const common = { fill, stroke: active ? 'rgb(var(--ink))' : 'rgb(var(--pencil))', strokeWidth: active ? 1.6 : 0.6 };
+type Active = { side: Side; slug: string };
+
+function Body({ figure, side, level, active, onHover, onPick }: { figure: BodyFigure; side: Side; level: (m: Muscle) => number; active: string | null; onHover: (a: Active) => void; onPick: (a: Active) => void }) {
+  const regions = new Map(REGIONS[side]);
+  const outline = OUTLINES[figure][side];
+  // The picked region is drawn last, so its ink outline isn't covered by its neighbours.
+  const parts = [...BODIES[figure][side]].sort((a, b) => Number(a.slug === active) - Number(b.slug === active));
   return (
-    <>
-      {shapes.map((s, i) => (s.kind === 'ellipse' ? <ellipse key={i} cx={s.cx} cy={s.cy} rx={s.rx} ry={s.ry} {...common} /> : <rect key={i} x={s.x} y={s.y} width={s.w} height={s.h} rx={s.r} {...common} />))}
-    </>
+    <svg viewBox={outline.viewBox} className="block aspect-[1/2] h-auto w-full max-w-[180px]" role="img" aria-label={`Body, ${side}`}>
+      {parts.map((part) => {
+        const muscles = regions.get(part.slug);
+        const lv = muscles ? Math.max(0, ...muscles.map(level)) : 0;
+        const on = part.slug === active;
+        const fill = on ? 'rgb(var(--red-ring))' : lv > 0 ? `rgb(var(--red-ring) / ${STEPS[lv - 1]})` : 'rgb(var(--paper-sunk))';
+        const paths = [...(part.path.common ?? []), ...(part.path.left ?? []), ...(part.path.right ?? [])];
+        return (
+          <g
+            key={part.slug}
+            className={cx(muscles && 'cursor-pointer')}
+            fill={fill}
+            stroke={on ? 'rgb(var(--ink))' : 'rgb(var(--pencil))'}
+            strokeWidth={on ? 3 : 1}
+            onPointerEnter={(ev) => ev.pointerType !== 'touch' && muscles && onHover({ side, slug: part.slug })}
+            onClick={() => muscles && onPick({ side, slug: part.slug })}
+          >
+            {paths.map((d) => (
+              <path key={d} d={d} />
+            ))}
+          </g>
+        );
+      })}
+      <path d={outline.d} fill="none" stroke="rgb(var(--pencil))" strokeWidth={2} vectorEffect="non-scaling-stroke" pointerEvents="none" />
+    </svg>
   );
 }
 
 /** Sets per muscle → 0–5 steps (5 = about 20 sets, near MRV). Hover or tap a region to read its sets. */
-export function Heatmap({ sets }: { sets: Partial<Record<Muscle, number>> }) {
-  const [shown, setShown] = useState<{ side: 'front' | 'back'; id: string } | null>(null);
+export function Heatmap({ sets, figure = 'male' }: { sets: Partial<Record<Muscle, number>>; figure?: BodyFigure }) {
+  const [picked, setPicked] = useState<Active | null>(null);
+  const [hover, setHover] = useState<Active | null>(null);
   const level = (m: Muscle) => {
     const v = sets[m] ?? 0;
     return v <= 0 ? 0 : Math.min(5, Math.ceil(v / 4));
   };
-  const region = shown ? (shown.side === 'front' ? FRONT : BACK).find((x) => x.id === shown.id) : undefined;
-  const total = region?.muscles.reduce((n, m) => n + (sets[m] ?? 0), 0) ?? 0;
+  const pick = (a: Active) => setPicked((c) => (c && c.slug === a.slug && c.side === a.side ? null : a));
+  const shown = hover ?? picked;
+  const muscles = shown ? (REGIONS[shown.side].find(([slug]) => slug === shown.slug)?.[1] ?? []) : [];
+  const label = shown ? (REGION_LABEL[shown.slug] ?? shown.slug) : '';
+  const total = muscles.reduce((n, m) => n + (sets[m] ?? 0), 0);
   const trained = (Object.keys(sets) as Muscle[]).filter((m) => (sets[m] ?? 0) > 0);
   return (
     <div aria-label={`Muscles trained: ${trained.map((m) => `${MUSCLE_LABEL[m]} ${sets[m]} sets`).join(', ') || 'none'}`}>
-      <div className="flex justify-center gap-4" onPointerLeave={(ev) => ev.pointerType !== 'touch' && setShown(null)}>
+      <div className="flex justify-center gap-4 px-margin" onPointerLeave={(ev) => ev.pointerType !== 'touch' && setHover(null)}>
         {(['front', 'back'] as const).map((side) => (
-          <div key={side} className="flex flex-col items-center">
-            <svg width={132} height={230} viewBox="0 0 120 212" role="img" aria-label={`Body, ${side}`}>
-              <path d={OUTLINE} fill="rgb(var(--paper-sunk))" stroke="rgb(var(--pencil))" strokeWidth={1} strokeLinejoin="round" />
-              {(side === 'front' ? FRONT : BACK).map((reg) => {
-                const lv = Math.max(0, ...reg.muscles.map(level));
-                const active = shown?.side === side && shown.id === reg.id;
-                const fill = active ? 'rgb(var(--red-ring))' : lv > 0 ? `rgb(var(--red-ring) / ${STEPS[lv - 1]})` : 'transparent';
-                return (
-                  <g key={reg.id} className={cx(reg.muscles.length > 0 && 'cursor-pointer')} onPointerEnter={(ev) => ev.pointerType !== 'touch' && reg.muscles.length && setShown({ side, id: reg.id })} onClick={() => reg.muscles.length && setShown(active ? null : { side, id: reg.id })}>
-                    <Shapes shapes={reg.shapes} fill={fill} active={active} />
-                  </g>
-                );
-              })}
-            </svg>
+          <div key={side} className="flex min-w-0 flex-1 flex-col items-center gap-1">
+            <Body figure={figure} side={side} level={level} active={shown?.side === side ? shown.slug : null} onHover={setHover} onPick={pick} />
             <span className="t-meta text-pencil">{side.toUpperCase()}</span>
           </div>
         ))}
       </div>
       <div className="mx-margin mt-3 min-h-[72px] border-t border-rule pt-2.5" aria-live="polite">
-        {region ? (
+        {shown ? (
           <>
-            <p className="t-label">{region.label.toUpperCase()}</p>
+            <p className="t-label">{label.toUpperCase()}</p>
             <p className="text-pencil">{total === 0 ? 'No sets logged' : `${total} set${total === 1 ? '' : 's'}`}</p>
-            {region.muscles.length > 1 || (region.muscles[0] && MUSCLE_LABEL[region.muscles[0]] !== region.label)
-              ? region.muscles.map((m) => (
+            {muscles.length > 1 || (muscles[0] && MUSCLE_LABEL[muscles[0]] !== label)
+              ? muscles.map((m) => (
                   <p key={m} className="t-meta text-pencil">
                     {MUSCLE_LABEL[m]} · {sets[m] ?? 0}
                   </p>
