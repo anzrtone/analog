@@ -89,3 +89,10 @@ Choices made while rebuilding Analog 0.2.0 on the Promodoro stack, with the reas
 
 - **`.github/workflows/build.yml` is Promodoro's**, renamed (`ANALOG_*` variables, `Analog-*.apk`, `Analog-portable.exe`, artifacts `analog-windows` / `analog-android`), with `npm run lint` added to the check job and without Promodoro's official-build variable (Analog has no server). It runs on `main`, pull requests, `v*` tags and by hand; tags publish a release with `SHA256SUMS.txt`.
 - **DEVLOG.md keeps 0.1.0's entries** under the new 0.2.0 one, so the project's history stays in one place.
+
+## Page and tour motion (after 0.2.0 phase 10)
+
+- **Pages change without a flash** (`src/components/ScreenStack.tsx`). The new page renders out of sight while the old one stays up; `useData` counts each page's first reads (`src/features/screenReady.ts`), and the swap happens once they are in or after 300 ms, whichever is first. The scroll goes back to the top before the new page's first paint. Before, the new page painted at the old page's scroll position with empty data, then jumped to the top, then filled in.
+- **Motion:** tabs fade in with a 6 px rise (200 ms); pushed pages slide in from the right and popped pages from the left (28 px, 240 ms). The system's reduced-motion setting turns all of it off through the existing CSS rule.
+- **`useData` boxes its result** so "loaded, and the answer is undefined" (no active workout) isn't mistaken for "still loading", which would have held such pages for the full 300 ms.
+- **The tour note and spotlight stay mounted between steps.** They used to unmount on every step and pop back in at the new place. Now the note shows the new words where it is, and once the next target has held still for two frames the note and the ring glide there (300 ms); with no target the ring closes to a point and the whole page dims. Targets inside a page still being prepared don't count.

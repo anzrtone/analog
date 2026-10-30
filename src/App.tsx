@@ -10,6 +10,7 @@ import { closeTopOverlay, cx } from '@/components/ui';
 import { DialogHost } from '@/components/Dialog';
 import { TourOverlay } from '@/components/TourOverlay';
 import { OnboardingHost } from '@/components/Welcome';
+import { ScreenStack } from '@/components/ScreenStack';
 import { Sidebar } from '@/components/Sidebar';
 import { ExercisesScreen } from '@/screens/ExercisesScreen';
 import { BackupScreen } from '@/screens/BackupScreen';
@@ -40,7 +41,7 @@ const TABS: Array<{ id: Tab; label: string; icon: typeof NotebookPen; tour?: str
 ];
 
 export function App() {
-  const { route, tab } = useNav();
+  const { route, stack, tab } = useNav();
   const wide = useWide();
   // Like 0.1.0: pushed pages (the workout, a program, the summary…) cover the tab bar on phones.
   const tabs = !wide && isTab(route);
@@ -49,18 +50,14 @@ export function App() {
   useGlobalShortcuts();
   useEscape();
 
-  // Each page opens at the top.
   const mainRef = useRef<HTMLElement>(null);
-  useEffect(() => {
-    mainRef.current?.scrollTo({ top: 0 });
-  }, [route]);
 
   return (
     <div className="flex h-full">
       {wide ? <Sidebar /> : null}
 
       <main ref={mainRef} className={cx('relative flex-1 overflow-y-auto overflow-x-hidden safe-pt', tabs && 'pb-[76px]')}>
-        <CurrentScreen route={route} />
+        <ScreenStack stack={stack} scroller={mainRef} render={renderScreen} />
       </main>
 
       {!tabs ? null : (
@@ -80,6 +77,8 @@ export function App() {
     </div>
   );
 }
+
+const renderScreen = (route: Route) => <CurrentScreen route={route} />;
 
 /** Memoised so shell-level updates (rest ticks, the spine) never re-render the page. */
 const CurrentScreen = memo(function CurrentScreen({ route }: { route: Route }) {

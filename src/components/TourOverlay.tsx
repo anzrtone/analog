@@ -16,10 +16,13 @@ const EDGE = 16;
 /** How long to wait for a step's target to render (screens load their data async) before skipping it. */
 const FIND_MS = 1500;
 
-/** The visible element for a tour target (the phone tab bar and the desktop spine carry the same marker). */
+/**
+ * The visible element for a tour target (the phone tab bar and the desktop spine carry the same marker). A page
+ * still being prepared off screen, or the one it is about to replace, doesn't count (ScreenStack).
+ */
 function findTarget(target: string): HTMLElement | null {
   const all = Array.from(document.querySelectorAll<HTMLElement>(`[data-tour="${CSS.escape(target)}"]`));
-  return all.find((el) => el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden') ?? null;
+  return all.find((el) => el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden' && !el.closest('[data-screen="preparing"], [inert]')) ?? null;
 }
 
 /** Mounted once at the root, above every screen. */
@@ -34,9 +37,10 @@ function Spotlight({ v }: { v: TourView }) {
   const [noteH, setNoteH] = useState(0);
   useBackClose(true, endTour);
 
-  // Follow the target through scrolling and resizes; only re-render when it actually moves.
+  // Follow the target through scrolling, resizes and data loading in. Only a position that has held still for two
+  // frames is used, so between steps the note and the ring stay where they were (showing the new words) until the
+  // next target has settled, then glide there instead of jumping through every frame of the page changing.
   useLayoutEffect(() => {
-    setReady(false);
     let raf = 0;
     let el: HTMLElement | null = null;
     let last = '';
@@ -57,8 +61,10 @@ function Spotlight({ v }: { v: TourView }) {
       if (key !== last) {
         last = key;
         stable = 0;
+      } else if (++stable === 2) {
         setBox({ rect: r, vw: window.innerWidth, vh: window.innerHeight });
-      } else if (++stable >= 2) setReady(true);
+        setReady(true);
+      }
       raf = requestAnimationFrame(track);
     };
     track();
@@ -91,16 +97,14 @@ function Spotlight({ v }: { v: TourView }) {
     const above = rect.top - PAD - GAP - h;
     pos = { left, top: below + h <= vh - EDGE ? below : above >= EDGE ? above : vh - h - EDGE };
   }
+  // With no target the hole closes to a point in the middle, so the whole page dims and the ring shrinks into it.
+  const hole = rect ? { left: rect.left - PAD, top: rect.top - PAD, width: rect.width + PAD * 2, height: rect.height + PAD * 2 } : { left: vw / 2, top: vh / 2, width: 0, height: 0 };
   return (
-    <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Tour">
-      {rect ? (
-        <div
-          className="pointer-events-none absolute rounded-[14px] border-2 border-ink transition-all duration-300 ease-out"
-          style={{ left: rect.left - PAD, top: rect.top - PAD, width: rect.width + PAD * 2, height: rect.height + PAD * 2, boxShadow: '0 0 0 9999px rgb(0 0 0 / 0.5)' }}
-        />
-      ) : (
-        <div className="absolute inset-0 bg-scrim/50" />
-      )}
+    <div className="fixed inset-0 z-50 animate-fade-in" role="dialog" aria-modal="true" aria-label="Tour">
+      <div
+        className={cx('pointer-events-none absolute rounded-[14px] border-2 transition-all duration-300 ease-out', rect ? 'border-ink' : 'border-transparent')}
+        style={{ ...hole, boxShadow: '0 0 0 9999px rgb(0 0 0 / 0.5)' }}
+      />
       {/* Clicks outside the note do nothing. */}
       <div className="absolute inset-0" />
       <div ref={(el) => el && el.offsetHeight !== noteH && setNoteH(el.offsetHeight)} className="absolute rounded-sheet border border-rule bg-raised p-4 transition-[left,top] duration-300 ease-out" style={{ width: w, ...pos }}>
