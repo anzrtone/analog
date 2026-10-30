@@ -2,7 +2,8 @@
 // Copyright (c) 2026 The Analog contributors
 /**
  * Local-first storage: IndexedDB via Dexie, inside the Tauri and Capacitor WebViews.
- * No servers, no accounts. The user owns every byte (see backup.ts for export and import).
+ * Local-first: no accounts, and nothing leaves the device unless the user opts in (see backup.ts for export and
+ * import, src/sync for the optional device sync). The user owns every byte.
  *
  * The tables and fields mirror Analog 0.1.0's SQLite schema one for one, so a 0.1.0 backup restores row for row
  * and a 0.2.0 backup has the same shape. Ids are string UUIDs, weights integer grams (`weightG`), times epoch ms.
@@ -15,6 +16,7 @@ import type { PlateStock } from '@/engine/math/plates';
 import type { Program, RunState, GroupDef } from '@/engine/programs/types';
 import type { SetType } from '@/engine/setTypes';
 import type { Equipment, LoggingMode, Muscle, Segment, Side } from '@/engine/types';
+import { installSyncHooks } from '@/sync/stamp';
 
 export interface ExerciseRow {
   id: string;
@@ -70,7 +72,8 @@ export interface GymRow {
   machineStepG: number;
   equipment: Equipment[];
   isDefault: boolean;
-  createdAt: number;
+  createdAt: number;  /** Stamped by the sync hooks on every write; rows from before sync count as 0. */
+  updatedAt?: number;
 }
 
 export interface WorkoutRow {
@@ -93,7 +96,8 @@ export interface WorkoutRow {
   importKey: string | null;
   healthConnectId: string | null;
   /** 1 while the workout is open; removed on finish. Only an index helper: never exported. */
-  open?: 1;
+  open?: 1;  /** Stamped by the sync hooks on every write; rows from before sync count as 0. */
+  updatedAt?: number;
 }
 
 export interface WorkoutGroupRow {
@@ -101,7 +105,8 @@ export interface WorkoutGroupRow {
   workoutId: string;
   kind: GroupDef['kind'];
   restMs: number;
-  transitionMs: number;
+  transitionMs: number;  /** Stamped by the sync hooks on every write; rows from before sync count as 0. */
+  updatedAt?: number;
 }
 
 export interface WorkoutExerciseRow {
@@ -116,7 +121,8 @@ export interface WorkoutExerciseRow {
   /** Engine margin note shown under the exercise title. */
   explanation: string | null;
   explanationDetail: string | null;
-  skipped: boolean;
+  skipped: boolean;  /** Stamped by the sync hooks on every write; rows from before sync count as 0. */
+  updatedAt?: number;
 }
 
 export interface WorkoutSetRow {
@@ -147,7 +153,8 @@ export interface WorkoutSetRow {
   targetRepsMax: number | null;
   targetRir: number | null;
   targetTimeMs: number | null;
-  completedAt: number | null;
+  completedAt: number | null;  /** Stamped by the sync hooks on every write; rows from before sync count as 0. */
+  updatedAt?: number;
 }
 
 export interface FeedbackRow {
@@ -159,7 +166,8 @@ export interface FeedbackRow {
   slotId: string | null;
   kind: 'pump' | 'pain' | 'workload' | 'soreness';
   value: string;
-  createdAt: number;
+  createdAt: number;  /** Stamped by the sync hooks on every write; rows from before sync count as 0. */
+  updatedAt?: number;
 }
 
 export interface LandmarkRow {
@@ -188,7 +196,8 @@ export interface RunRow {
   state: RunState;
   startedAt: number;
   endedAt: number | null;
-  active: boolean;
+  active: boolean;  /** Stamped by the sync hooks on every write; rows from before sync count as 0. */
+  updatedAt?: number;
 }
 
 export interface PrRow {
@@ -202,7 +211,8 @@ export interface PrRow {
   atWeightG: number | null;
   side: Side | null;
   message: string;
-  createdAt: number;
+  createdAt: number;  /** Stamped by the sync hooks on every write; rows from before sync count as 0. */
+  updatedAt?: number;
 }
 
 export interface MeasurementRow {
@@ -210,7 +220,8 @@ export interface MeasurementRow {
   date: number;
   kind: string;
   value: number;
-  note: string | null;
+  note: string | null;  /** Stamped by the sync hooks on every write; rows from before sync count as 0. */
+  updatedAt?: number;
 }
 
 export interface PhotoRow {
@@ -231,6 +242,14 @@ export interface SettingRow {
   value: unknown;
 }
 
+/** A deleted row's grave marker, so a sync can tell "deleted here" from "never arrived here". `id` is `table:rowKey`. */
+export interface TombstoneRow {
+  id: string;
+  table: string;
+  rid: string;
+  at: number;
+}
+
 export class AnalogDB extends Dexie {
   exercises!: Table<ExerciseRow, string>;
   exerciseOverrides!: Table<ExerciseOverrideRow, string>;
@@ -249,6 +268,7 @@ export class AnalogDB extends Dexie {
   photos!: Table<PhotoRow, string>;
   settings!: Table<SettingRow, string>;
   photoFiles!: Table<PhotoFileRow, string>;
+  tombstones!: Table<TombstoneRow, string>;
 
   constructor(name = 'analog') {
     super(name);
@@ -276,6 +296,9 @@ export class AnalogDB extends Dexie {
     });
     // v2 (0.2.0): progress photo images live in the database instead of a folder.
     this.version(2).stores({ photoFiles: 'id' });
+    // v3 (0.4.0): graves for device sync. Rows gain an optional `updatedAt` (no new index), so nothing is migrated.
+    this.version(3).stores({ tombstones: 'id, at' });
+    installSyncHooks(this);
   }
 }
 

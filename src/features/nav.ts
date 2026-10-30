@@ -23,9 +23,10 @@ export type Route =
   | { name: 'measurements' }
   | { name: 'import' }
   | { name: 'backup' }
+  | { name: 'sync' }
   | { name: 'settings' }
   | { name: 'about' }
-  | { name: 'devlog' }
+  | { name: 'devlog'; whatsNew?: true }
   | { name: 'share'; kind: ShareKind; id: string }
   | { name: 'admin' }
   | { name: 'kitchen' };

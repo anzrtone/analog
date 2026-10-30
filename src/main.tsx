@@ -16,6 +16,7 @@ import { installTourHost } from '@/features/tour/host';
 import { navigate } from '@/features/nav';
 import { applyNativeAction, applyNativeActions } from '@/features/workout/timers';
 import { loadPlatform } from '@/platform';
+import { startSync } from '@/sync/runtime';
 import { App } from './App';
 
 /** The bundled exercise library, refreshed when a release ships a newer one. Overrides and custom exercises stay. */
@@ -59,6 +60,7 @@ async function boot() {
   installTourHost();
   await startOnboardingIfNeeded();
   startDevlog();
+  startSync();
 }
 
 boot().catch((err) => {

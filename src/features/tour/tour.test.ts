@@ -117,7 +117,7 @@ describe('guided tour', () => {
     expect(log.sample).toEqual([true, false, true]);
     goTo(steps.length - 1);
     expect(log.sample).toEqual([true, false, true, false]);
-    expect(view().text).toBe('That’s the tour, Sam. Everything stays on this device; back it up from More whenever you like.');
+    expect(view().text).toBe('That’s the tour, Sam. Your data lives on this device unless you turn on sync; back it up from More whenever you like.');
     nextStep();
     expect(tourSnapshot()).toBeNull();
     expect(log.discarded).toBe(1);

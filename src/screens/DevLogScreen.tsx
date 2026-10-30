@@ -8,6 +8,7 @@ import { compareVersions, formatDay, type CheckOutcome } from '@/features/devlog
 import { RELEASES, type NoteTag, type Release } from '@/features/devlog/releases';
 import { appVersion, runUpdateCheck } from '@/features/devlog/store';
 import { openLink } from '@/platform';
+import { SupportButton } from '@/components/SupportButton';
 import { PlateRing } from '@/components/PlateRing';
 import { ChoiceRow, cx, Pad, Screen, Section, Toggle } from '@/components/ui';
 
@@ -30,7 +31,7 @@ function Pill({ label, cls }: { label: string; cls: string }) {
   return <span className={cx('t-label mt-[5px] inline-flex h-[22px] shrink-0 items-center self-start rounded-full px-2.5 text-[12px] leading-4', cls)}>{label}</span>;
 }
 
-export function DevLogScreen() {
+export function DevLogScreen({ whatsNew = false }: { whatsNew?: boolean }) {
   const s = useSettings();
   const current = appVersion();
   const [busy, setBusy] = useState(false);
@@ -47,7 +48,7 @@ export function DevLogScreen() {
   };
 
   return (
-    <Screen title="Dev log" backButton>
+    <Screen title={whatsNew ? `What’s new in Analog ${current}` : 'Dev log'} backButton>
       <Pad className="pt-2">
         <VersionCard
           title={latest ? `Analog ${latest.version} is out.` : `You’re on ${current}.`}
@@ -84,6 +85,10 @@ export function DevLogScreen() {
           </button>
         </Pad>
       </Section>
+
+      <Pad className="pb-4 pt-4">
+        <SupportButton />
+      </Pad>
     </Screen>
   );
 }

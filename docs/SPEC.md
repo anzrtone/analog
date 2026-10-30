@@ -2,7 +2,7 @@
 
 **Analog**: the training log you own. Design and brand language live in [BRAND.md](BRAND.md).
 
-Free, open source, offline-first **Android app** (iOS later from the same codebase). All data on device (SQLite). No account. No servers. Only cost: $25 one-time Google Play fee.
+Free, open source, privacy-first **Android app** (iOS later from the same codebase). All data on device (SQLite). No account. Nothing goes online unless the user opts in (device sync, the anonymous survey, the release check). Only cost: $25 one-time Google Play fee.
 
 **Stack**
 - **Expo (React Native) + TypeScript** — reuses web/JS skills, ships Android now and iOS later without a rewrite. (Alternative if iOS is never wanted: Kotlin + Jetpack Compose + Room.)
@@ -258,7 +258,7 @@ settings         units, rirOrRpe, theme, defaults…
 ## 10a. Desktop (Windows .exe) *(added 2026-10-29)*
 - **Same app, wide layout.** The web build of the Expo app, wrapped in Electron (MIT). One codebase; Android is unchanged.
 - **Storage:** SQLite compiled to WASM (sql.js) in the page; the whole database is written atomically (temp file + rename) to `%APPDATA%/Analog/analog.db` after every write. Same schema and migrations as Android, so a `.json` backup moves between them.
-- **No network, no account, no auto-updater.** Links open in the default browser. Updates are new installers from GitHub Releases.
+- **Network only by opt-in, no account, no auto-updater.** Links open in the default browser. Updates are new installers from GitHub Releases. The opt-in network features are the release check, device sync and the anonymous survey.
 - **Keyboard first:** Enter ticks the focused set, arrows move and change weight, `[ ]` reps, W/R/E/T edit, A adds a set, Shift E adds an exercise, S/−/= control rest, Ctrl Enter finishes, Alt 1–5 switch pages, Ctrl N starts a workout.
 - **Builds:** `npm run desktop:build` makes an NSIS installer and a portable .exe (unsigned; see Distribution).
 - **Not on desktop:** lock-screen notifications, haptics, Health Connect, progress-photo camera. Rest ends with the in-app ring and bell.

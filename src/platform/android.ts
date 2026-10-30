@@ -12,10 +12,11 @@ import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { Share } from '@capacitor/share';
 import { RestTimer } from './restTimer';
-import type { Haptic, Platform, PlatformHandlers } from './types';
+import type { Haptic, Platform, PlatformHandlers, SyncFile } from './types';
 
 /** Automatic backups: the app's own files (Android Auto Backup carries them to a new phone with the rest). */
 const BACKUP_DIR = 'backups';
+const SYNC_DIR = 'Analog';
 const quiet = (p: Promise<unknown>) => void p.catch((err) => console.warn('[android]', err));
 
 export const android: Platform = {
@@ -127,4 +128,34 @@ export const android: Platform = {
     const r = await Filesystem.readFile({ path: `${BACKUP_DIR}/${fileName}`, directory: Directory.Data, encoding: Encoding.UTF8 });
     return typeof r.data === 'string' ? r.data : await r.data.text();
   },
+
+  /** One folder, `Documents/Analog`: the person lets their sync app (Syncthing, Drive…) copy it. Nothing to create. */
+  syncFolderMode: 'fixed',
+  async pickSyncFolder() {
+    return SYNC_DIR;
+  },
+  async fixedSyncFolder() {
+    return `Documents/${SYNC_DIR}`;
+  },
+  async cloudFolders() {
+    return [];
+  },
+  async readSyncFiles(_dir, skipName) {
+    let names: string[];
+    try {
+      names = (await Filesystem.readdir({ path: SYNC_DIR, directory: Directory.Documents })).files.map((f) => f.name);
+    } catch {
+      return [];
+    }
+    const out: SyncFile[] = [];
+    for (const name of names.filter((n) => /^analog-sync-[\w-]+\.json$/.test(n) && n !== skipName)) {
+      const r = await Filesystem.readFile({ path: `${SYNC_DIR}/${name}`, directory: Directory.Documents, encoding: Encoding.UTF8 });
+      out.push({ name, text: typeof r.data === 'string' ? r.data : await r.data.text() });
+    }
+    return out;
+  },
+  async writeSyncFile(_dir, fileName, contents) {
+    await Filesystem.writeFile({ path: `${SYNC_DIR}/${fileName}`, data: contents, directory: Directory.Documents, encoding: Encoding.UTF8, recursive: true });
+  },
+  async revealFolder() {},
 };

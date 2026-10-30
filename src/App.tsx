@@ -21,6 +21,7 @@ import { ImportScreen } from '@/screens/ImportScreen';
 import { MeasurementsScreen } from '@/screens/MeasurementsScreen';
 import { AboutScreen, AdminScreen, KitchenSinkScreen, MoreScreen } from '@/screens/MoreScreens';
 import { SettingsScreen } from '@/screens/SettingsScreen';
+import { SyncScreen } from '@/screens/SyncScreen';
 import { HistoryScreen, WorkoutDetailView } from '@/screens/HistoryScreen';
 import { MesoReportScreen } from '@/screens/MesoReportScreen';
 import { ProgramBuilderScreen } from '@/screens/ProgramBuilderScreen';
@@ -31,6 +32,7 @@ import { StatsScreen } from '@/screens/StatsScreen';
 import { SummaryScreen } from '@/screens/SummaryScreen';
 import { TodayScreen } from '@/screens/TodayScreen';
 import { WorkoutScreen } from '@/screens/WorkoutScreen';
+import { palettes, type ThemeName } from '@/theme/tokens';
 
 const TABS: Array<{ id: Tab; label: string; icon: typeof NotebookPen; tour?: string }> = [
   { id: 'today', label: 'Log', icon: NotebookPen },
@@ -125,12 +127,14 @@ const CurrentScreen = memo(function CurrentScreen({ route }: { route: Route }) {
       return <ImportScreen />;
     case 'backup':
       return <BackupScreen />;
+    case 'sync':
+      return <SyncScreen />;
     case 'settings':
       return <SettingsScreen />;
     case 'about':
       return <AboutScreen />;
     case 'devlog':
-      return <DevLogScreen />;
+      return <DevLogScreen whatsNew={route.whatsNew} />;
     case 'more':
       return <MoreScreen />;
     case 'admin':
@@ -141,14 +145,14 @@ const CurrentScreen = memo(function CurrentScreen({ route }: { route: Route }) {
 });
 
 
-/** Carbon (dark, default), Paper (light) or System: one attribute on <html> swaps every token. */
-function useTheme(theme: 'carbon' | 'paper' | 'system') {
+/** A named colourway or System: one attribute on <html> swaps every token. */
+function useTheme(theme: ThemeName | 'system') {
   useEffect(() => {
     const media = window.matchMedia('(prefers-color-scheme: light)');
     const apply = () => {
-      const resolved = theme === 'system' ? (media.matches ? 'paper' : 'carbon') : theme;
+      const resolved: ThemeName = theme === 'system' ? (media.matches ? 'paper' : 'carbon') : theme;
       document.documentElement.dataset.theme = resolved;
-      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', resolved === 'paper' ? '#F6F1E7' : '#17181C');
+      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', palettes[resolved].paper);
     };
     apply();
     if (theme !== 'system') return;

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 The Analog contributors
 
-// The dev log: what changed in each release, shipped inside the app so it reads offline.
+// The dev log: what changed in each release, shipped inside the app so it needs no connection to read.
 // Newest first. Add an entry when you bump the version in package.json; a test fails until you do.
 
 /** New: a feature that wasn't there. Better: something that works better. Fixed: a bug that's gone. */
@@ -23,6 +23,19 @@ export interface Release {
 }
 
 export const RELEASES: Release[] = [
+  {
+    version: '0.4.0',
+    date: '2026-10-30',
+    summary: 'Your devices can now share one log, if you want them to, and the logbook gets three new looks. Nothing goes online unless you turn it on.',
+    notes: [
+      { tag: 'new', text: 'Sync between devices (More, then Sync between devices). Pair with a code, a cloud folder you already use, or a file you carry across. New workouts, edits and deletions merge both ways, and merging twice never doubles anything.' },
+      { tag: 'new', text: 'With a pairing code your data is scrambled on the device before it leaves, so the server only ever holds something it cannot read. There is no account.' },
+      { tag: 'new', text: 'Three more themes: Blueprint, Darkroom and Ledger, with a small preview of each in Settings.' },
+      { tag: 'new', text: 'A quiet Support me button in Settings and the dev log. It sends nothing until you press it.' },
+      { tag: 'better', text: 'Plainer words about privacy. Analog never needs an account, and the few things that go online (the update check, sync, sharing your welcome answers) are optional and start switched off.' },
+      { tag: 'better', text: 'Your unit, effort, theme and other preferences follow you between synced devices. Sounds and notifications stay per device.' },
+    ],
+  },
   {
     version: '0.3.0',
     date: '2026-10-30',

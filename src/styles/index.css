@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 /* Copyright (c) 2026 The Analog contributors */
-/* Fonts are bundled (never fetched): the app works fully offline inside Tauri and Capacitor. BRAND §5. */
+/* Fonts are bundled (never fetched), so no font request ever leaves the app. BRAND §5. */
 @import '@fontsource/newsreader/latin-500.css';
 @import '@fontsource/ibm-plex-mono/latin-400.css';
 @import '@fontsource/ibm-plex-mono/latin-500.css';
@@ -60,6 +60,78 @@
   --green-text: 44 107 40; /* #2C6B28 */
   --white-ring: 133 130 116; /* #858274 */
   --white-text: 103 101 94; /* #67655E */
+  color-scheme: light;
+}
+
+/* Blueprint. */
+:root[data-theme='blueprint'],
+[data-theme='blueprint'] {
+  --paper: 15 30 54; /* #0F1E36 */
+  --paper-raised: 22 40 70; /* #162846 */
+  --paper-sunk: 11 23 43; /* #0B172B */
+  --rule: 38 64 106; /* #26406A */
+  --ink: 228 238 255; /* #E4EEFF */
+  --ink-2: 175 196 230; /* #AFC4E6 */
+  --pencil: 138 163 204; /* #8AA3CC */
+  --erased: 74 98 144; /* #4A6290 */
+  --red-ring: 232 97 94; /* #E8615E */
+  --red-text: 244 160 157; /* #F4A09D */
+  --blue-ring: 79 147 222; /* #4F93DE */
+  --blue-text: 147 189 238; /* #93BDEE */
+  --yellow-ring: 240 169 58; /* #F0A93A */
+  --yellow-text: 246 200 120; /* #F6C878 */
+  --green-ring: 90 174 85; /* #5AAE55 */
+  --green-text: 154 211 148; /* #9AD394 */
+  --white-ring: 127 138 163; /* #7F8AA3 */
+  --white-text: 168 165 156; /* #A8A59C */
+  color-scheme: dark;
+}
+
+/* Darkroom. */
+:root[data-theme='darkroom'],
+[data-theme='darkroom'] {
+  --paper: 26 17 16; /* #1A1110 */
+  --paper-raised: 36 24 23; /* #241817 */
+  --paper-sunk: 19 12 11; /* #130C0B */
+  --rule: 58 38 36; /* #3A2624 */
+  --ink: 242 221 208; /* #F2DDD0 */
+  --ink-2: 201 175 162; /* #C9AFA2 */
+  --pencil: 156 131 120; /* #9C8378 */
+  --erased: 94 74 68; /* #5E4A44 */
+  --red-ring: 232 97 94; /* #E8615E */
+  --red-text: 244 160 157; /* #F4A09D */
+  --blue-ring: 79 147 222; /* #4F93DE */
+  --blue-text: 147 189 238; /* #93BDEE */
+  --yellow-ring: 240 169 58; /* #F0A93A */
+  --yellow-text: 246 200 120; /* #F6C878 */
+  --green-ring: 90 174 85; /* #5AAE55 */
+  --green-text: 154 211 148; /* #9AD394 */
+  --white-ring: 138 127 120; /* #8A7F78 */
+  --white-text: 168 165 156; /* #A8A59C */
+  color-scheme: dark;
+}
+
+/* Ledger. */
+:root[data-theme='ledger'],
+[data-theme='ledger'] {
+  --paper: 238 242 230; /* #EEF2E6 */
+  --paper-raised: 246 249 240; /* #F6F9F0 */
+  --paper-sunk: 226 232 214; /* #E2E8D6 */
+  --rule: 200 209 181; /* #C8D1B5 */
+  --ink: 31 58 43; /* #1F3A2B */
+  --ink-2: 70 89 77; /* #46594D */
+  --pencil: 86 97 86; /* #566156 */
+  --erased: 156 166 143; /* #9CA68F */
+  --red-ring: 217 63 60; /* #D93F3C */
+  --red-text: 163 45 45; /* #A32D2D */
+  --blue-ring: 47 123 208; /* #2F7BD0 */
+  --blue-text: 24 95 165; /* #185FA5 */
+  --yellow-ring: 177 118 24; /* #B17618 */
+  --yellow-text: 138 90 12; /* #8A5A0C */
+  --green-ring: 62 142 58; /* #3E8E3A */
+  --green-text: 44 107 40; /* #2C6B28 */
+  --white-ring: 124 121 104; /* #7C7968 */
+  --white-text: 91 90 82; /* #5B5A52 */
   color-scheme: light;
 }
 
@@ -145,6 +217,7 @@ button {
   .btn-secondary { @apply btn border border-ink text-ink hover:bg-sunk; }
   .btn-ghost { @apply btn text-ink2 hover:bg-sunk; }
   .btn-danger { @apply btn border border-red-text text-red-text hover:bg-sunk; }
+  .btn-support { @apply btn gap-2 rounded-full px-4 text-ink hover:bg-[#FFE893] hover:text-[#1D1D1B]; }
   .btn-compact { @apply px-3; }
 
   .field { @apply min-h-touch w-full rounded-control bg-sunk px-3 font-ui text-ink outline-none placeholder:text-pencil focus:ring-1 focus:ring-ink/50; font-size: 15px; }

@@ -1,0 +1,18 @@
+# The Analog sync relay. Deploy with `npx wrangler deploy` from this folder, then put the Worker's URL in
+# RELAY_URL (src/config.ts) and its origin in connect-src (src-tauri/tauri.conf.json).
+name = "analog-sync"
+main = "index.js"
+compatibility_date = "2026-01-01"
+
+[[r2_buckets]]
+binding = "SYNC_BUCKET"
+bucket_name = "analog-sync"
+
+# 20 writes a minute per IP. Optional: the Worker skips the check when this is not bound.
+[[unsafe.bindings]]
+name = "SYNC_LIMITER"
+type = "ratelimit"
+namespace_id = "1001"
+simple = { limit = 20, period = 60 }
+
+# Also add an R2 lifecycle rule that expires objects after 60 days (dashboard: R2 > analog-sync > Settings).

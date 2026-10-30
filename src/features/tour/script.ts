@@ -61,7 +61,7 @@ export const TOURS: Record<string, TourScript> = {
       { screen: 'stats', target: 'nav-stats', text: 'Stats turns the log into numbers.' },
       { screen: 'stats', target: 'stats-volume', text: 'Hard sets per muscle each week, against the range that usually builds muscle. Comparisons are just info, never a grade.' },
       { screen: 'stats', target: 'stats-prs', text: 'Every PR gets a stamp and stays here. Tap one to share it.' },
-      { screen: 'today', target: null, chapter: 'today', text: 'That’s the tour, {name}. Everything stays on this device; back it up from More whenever you like.' },
+      { screen: 'today', target: null, chapter: 'today', text: 'That’s the tour, {name}. Your data lives on this device unless you turn on sync; back it up from More whenever you like.' },
     ],
   },
 };

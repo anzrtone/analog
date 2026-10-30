@@ -2,8 +2,8 @@
   "name": "analog",
   "private": true,
   "license": "AGPL-3.0-only",
-  "version": "0.3.0",
-  "description": "Analog: the training log you own. Free, open-source, offline lifting logbook for Android and Windows.",
+  "version": "0.4.0",
+  "description": "Analog: the training log you own. Free, open-source, private lifting logbook for Android and Windows.",
   "type": "module",
   "scripts": {
     "dev": "vite",

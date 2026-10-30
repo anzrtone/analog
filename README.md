@@ -1,6 +1,6 @@
 # Analog
 
-**The training log you own.** A free, open-source, offline-first workout tracker that looks like a paper lifting logbook. Android and Windows. No account, no servers, no ads, no tracking, nothing paywalled.
+**The training log you own.** A free, open-source, private workout tracker that looks like a paper lifting logbook. Android and Windows. No account, no ads, no tracking, nothing paywalled. Your data lives on your device, and nothing leaves it unless you opt in.
 
 - Adaptive volume: mesocycles that change weekly sets per muscle from your pump, joint, workload and recovery feedback, with the reason for every change shown.
 - A progression engine that explains itself: linear, double, triple, RIR-based, % of training max, top set + back-offs, time progression for holds, scheduled and reactive deloads.
@@ -9,7 +9,7 @@
 - A rest timer on the lock screen with −15 / +15 / Skip, and a bell that rings on time with the screen off.
 - Share cards, program links and QR codes. Strong and Hevy import. JSON and CSV export. Automatic daily backups.
 
-The product spec and design language live in [docs/SPEC.md](docs/SPEC.md) and [docs/BRAND.md](docs/BRAND.md). They are the source of truth. What changed in 0.3.0 and why: [docs/DEVLOG.md](docs/DEVLOG.md) and [docs/DECISIONS.md](docs/DECISIONS.md).
+The product spec and design language live in [docs/SPEC.md](docs/SPEC.md) and [docs/BRAND.md](docs/BRAND.md). They are the source of truth. What changed in 0.4.0 and why: [docs/DEVLOG.md](docs/DEVLOG.md) and [docs/DECISIONS.md](docs/DECISIONS.md).
 
 ## Status
 
@@ -98,7 +98,13 @@ scripts/         browse.mjs (headless Edge for screenshots), walks/, android-res
 
 ## Privacy
 
-Everything is stored on your device, in the app's own IndexedDB. Analog sends nothing anywhere. The one network request it can make is to GitHub's public release list, and only when you press **Check** on the dev log or turn on the daily check (off by default); it carries no cookies, no referrer and nothing about you. The welcome questions stay on the device. Progress photos stay out of backups.
+Everything is stored on your device, in the app's own IndexedDB, and Analog works the same whether or not you ever use anything below. Nothing goes online unless you opt in, and every one of these is off until you turn it on:
+
+- **Release check.** Asks GitHub's public release list for the newest version, when you press **Check** on the dev log or turn on the daily check. No cookies, no referrer, nothing about you.
+- **Device sync** (More, then Sync between devices). Merges your own devices through a pairing code, a cloud folder you already use, or a file you carry. With a pairing code the data is encrypted on your device before it is sent, and the relay stores only ciphertext it cannot read; the code never leaves your devices. Cloud-folder and file sync involve no Analog server at all. See `worker/` for the relay's source.
+- **Welcome answers.** The questions you answer on first run stay on the device. Sharing them anonymously is a separate switch, off by default, and turning it off asks the server to delete them.
+
+Progress photos stay out of backups and out of sync.
 
 ## Licences
 

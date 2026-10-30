@@ -74,4 +74,22 @@ export const dev: Platform = {
   async readBackup() {
     throw new Error('The browser build keeps no automatic backups.');
   },
+  // A browser can't read or write a folder; use a pairing code or the sync file to try sync here.
+  syncFolderMode: 'none',
+  async pickSyncFolder() {
+    return null;
+  },
+  async fixedSyncFolder() {
+    return 'nowhere (browser development build)';
+  },
+  async cloudFolders() {
+    return [];
+  },
+  async readSyncFiles() {
+    return [];
+  },
+  async writeSyncFile() {
+    throw new Error('The browser build cannot write into a folder.');
+  },
+  async revealFolder() {},
 };

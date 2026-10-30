@@ -39,6 +39,11 @@ pub fn run() {
             files::backup_write,
             files::backup_list,
             files::backup_read,
+            files::sync_make_folder,
+            files::sync_cloud_folders,
+            files::sync_read_files,
+            files::sync_write_file,
+            files::sync_reveal_folder,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Analog");

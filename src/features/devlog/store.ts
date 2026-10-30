@@ -5,7 +5,7 @@ import { patchSettings, settings } from '@/db/settings';
 import { openLink } from '@/platform';
 import { ask } from '@/components/Dialog';
 import { navigate } from '../nav';
-import { checkForUpdate, getJson, whatsNew, whatsNewMessage, type CheckOutcome } from './logic';
+import { checkForUpdate, getJson, whatsNew, type CheckOutcome } from './logic';
 
 export const appVersion = (): string => (typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '0.0.0');
 
@@ -18,10 +18,7 @@ export function startDevlog(): void {
     void patchSettings({ lastSeenVersion: current });
     // Not on a first install: the welcome flow has that covered.
     if (fresh.length) {
-      ask(`What’s new in Analog ${current}`, whatsNewMessage(fresh), [
-        { text: 'OK', style: 'cancel' },
-        { text: 'See the dev log', onPress: () => navigate({ name: 'devlog' }) },
-      ]);
+      navigate({ name: 'devlog', whatsNew: true });
     }
   }
   void runUpdateCheck();
@@ -30,7 +27,7 @@ export function startDevlog(): void {
 let checking: Promise<CheckOutcome> | null = null;
 
 /**
- * Ask GitHub for a newer release: the only network request Analog makes. On launch only with the daily check on,
+ * Ask GitHub for a newer release: one of the few optional requests Analog can make (sync and the survey are the others). On launch only with the daily check on,
  * at most once a day; `force` is the Check button. No cookies, no referrer, a 10 s timeout (see logic.ts).
  */
 export function runUpdateCheck(force = false): Promise<CheckOutcome> {

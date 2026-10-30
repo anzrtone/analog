@@ -4,6 +4,7 @@ import { db as userDb, newId, tables, type AnalogDB } from '@/db/schema';
 import { createExercise, getExercises } from '@/db/exercises';
 import { addFeedback, addMeasurement, activeRun, ensureDefaultGym, saveGym, saveProgram, setMachineSetting, startRun } from '@/db/repos';
 import { patchSettings, saveSettings, settings } from '@/db/settings';
+import { skipSyncStamping } from '@/sync/stamp';
 import { addExercise, completeSet, getWorkout, startWorkout, updateSet, updateWorkout, type NewSet } from '@/db/workouts';
 import type { SetType } from '@/engine/setTypes';
 import type { Segment } from '@/engine/types';
@@ -24,8 +25,9 @@ const kg = (n: number) => Math.round(n * 1000);
 /** Wipe everything the user created. The bundled exercise library stays, like on a fresh install. */
 export async function resetAll(d: DB = db): Promise<void> {
   const seedVersion = settings().seedVersion;
-  await d.transaction('rw', [...tables(d), d.photoFiles], async () => {
-    for (const t of [...tables(d), d.photoFiles]) if (t.name !== 'exercises') await t.clear();
+  await d.transaction('rw', [...tables(d), d.photoFiles, d.tombstones], async () => {
+    skipSyncStamping();
+    for (const t of [...tables(d), d.photoFiles, d.tombstones]) if (t.name !== 'exercises') await t.clear();
     await d.exercises.where('source').equals('custom').delete();
     await d.exercises.toCollection().modify({ hidden: false });
   });

@@ -8,13 +8,21 @@ export const SITE_URL = 'https://analog-app.github.io';
 /** Shown on every share card footer. */
 export const CARD_URL = 'analog-app.github.io';
 export const ISSUES_URL = `${REPO_URL}/issues`;
+/** The developer's Kori support page, opened only when the user presses Support me. */
+export const SUPPORT_URL = 'https://supportkori.com/anzar';
 export const PRIVACY_URL = `${SITE_URL}/privacy`;
 /**
- * Where opted-in welcome answers go (POST, upserted by install id). Null: no server, so nothing is ever sent,
- * the consent page says the answers stay on this device, and Settings hides the sharing switch.
- * Setting it also means updating the "no servers" lines in About and the store listing.
+ * Where opted-in welcome answers go (POST, upserted by install id). Null: nothing is ever sent, the consent page
+ * says sharing isn't on in this version, and Settings hides the sharing switch.
+ * Setting it also means updating the "optional extras" lines in About, the README privacy section and the store listing.
  */
 export const SURVEY_URL: string | null = null;
+/**
+ * The sync relay, a Cloudflare Worker (worker/index.js) that stores one encrypted blob per pairing code. Null: this
+ * build has no relay, the "pairing code" way to sync is hidden, and cloud-folder and file sync still work.
+ * Setting it also means adding its origin to connect-src in src-tauri/tauri.conf.json.
+ */
+export const RELAY_URL: string | null = 'https://analog-sync.promodoro.workers.dev';
 /** Release pages, and the API the optional update check asks (only when the user presses Check or turns on the daily check). */
 export const RELEASES_URL = `${REPO_URL}/releases`;
 export const LATEST_RELEASE_API = `https://api.github.com/repos/${REPO}/releases/latest`;

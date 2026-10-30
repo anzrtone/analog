@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 The Analog contributors
 import { contrastRatio } from './contrast';
-import { carbon, paper, type Palette } from './tokens';
+import { blueprint, carbon, darkroom, ledger, paper, type Palette } from './tokens';
 
 const backgrounds = (p: Palette) => [p.paper, p.paperRaised, p.paperSunk];
 
-describe.each([paper, carbon])('$name theme contrast', (p) => {
+describe.each([paper, carbon, blueprint, darkroom, ledger])('$name theme contrast', (p) => {
   it.each(['ink', 'ink2', 'pencil'] as const)('%s text passes AA (4.5:1) on every surface', (token) => {
     for (const bg of backgrounds(p)) expect(contrastRatio(p[token], bg)).toBeGreaterThanOrEqual(4.5);
   });

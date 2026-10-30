@@ -59,6 +59,7 @@ export function workoutRow(w: Partial<WorkoutRow> & { id: string; title: string;
     notes: w.notes ?? null,
     importKey: w.importKey ?? null,
     healthConnectId: w.healthConnectId ?? null,
+    ...(w.updatedAt !== undefined ? { updatedAt: w.updatedAt } : {}),
   };
   if (row.endedAt == null) row.open = 1;
   return row;
@@ -94,6 +95,7 @@ export function setRow(s: Partial<WorkoutSetRow> & Pick<WorkoutSetRow, 'id' | 'w
     targetRir: s.targetRir ?? null,
     targetTimeMs: s.targetTimeMs ?? null,
     completedAt: s.completedAt ?? null,
+    ...(s.updatedAt !== undefined ? { updatedAt: s.updatedAt } : {}),
   };
 }
 
@@ -110,6 +112,7 @@ export function workoutExerciseRow(e: Partial<WorkoutExerciseRow> & Pick<Workout
     explanation: e.explanation ?? null,
     explanationDetail: e.explanationDetail ?? null,
     skipped: e.skipped ?? false,
+    ...(e.updatedAt !== undefined ? { updatedAt: e.updatedAt } : {}),
   };
 }
 

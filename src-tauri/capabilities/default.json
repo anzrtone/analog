@@ -10,7 +10,7 @@
     "dialog:allow-open",
     {
       "identifier": "opener:allow-open-url",
-      "allow": [{ "url": "https://github.com/*" }, { "url": "https://analog-app.github.io/*" }]
+      "allow": [{ "url": "https://github.com/*" }, { "url": "https://analog-app.github.io/*" }, { "url": "https://supportkori.com/*" }, { "url": "https://www.supportkori.com/*" }]
     }
   ]
 }

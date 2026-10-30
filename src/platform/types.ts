@@ -33,6 +33,17 @@ export interface BackupWriteResult {
   pruned: number;
 }
 
+export interface CloudFolder {
+  /** "Dropbox", "OneDrive"… */
+  label: string;
+  path: string;
+}
+
+export interface SyncFile {
+  name: string;
+  text: string;
+}
+
 export interface Platform {
   kind: 'desktop' | 'android' | 'dev';
   /** Where the database lives, for the spine and About ("Saved to …"). */
@@ -77,4 +88,19 @@ export interface Platform {
   /** The automatic backups on this device, newest first (file names). */
   listBackups(): Promise<string[]>;
   readBackup(fileName: string): Promise<string>;
+
+  /* ---- folder sync (optional: a way to sync with no server, through a folder the person's own cloud app already syncs) ---- */
+  /** 'pick': the person chooses a folder; 'fixed': one folder the shell owns (Android); 'none': no folders here. */
+  syncFolderMode: 'pick' | 'fixed' | 'none';
+  /** Pick a folder (or use `parent`, such as a detected cloud folder, without asking); the shell makes the `Analog Sync` folder inside it. Null when cancelled. */
+  pickSyncFolder(title: string, parent?: string): Promise<string | null>;
+  /** The fixed folder (`syncFolderMode: 'fixed'`): its path as shown to the person. */
+  fixedSyncFolder(): Promise<string>;
+  /** Installed cloud-storage folders (Dropbox, OneDrive, Google Drive, iCloud) the shell can find. */
+  cloudFolders(): Promise<CloudFolder[]>;
+  /** Every `analog-sync-*.json` in the folder except `skipName` (this device's own file, which is never read back). */
+  readSyncFiles(dir: string, skipName: string): Promise<SyncFile[]>;
+  /** Write this device's file into the folder, atomically. */
+  writeSyncFile(dir: string, fileName: string, contents: string): Promise<void>;
+  revealFolder(dir: string): Promise<void>;
 }

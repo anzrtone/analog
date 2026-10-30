@@ -7,10 +7,10 @@
  */
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { save } from '@tauri-apps/plugin-dialog';
+import { open, save } from '@tauri-apps/plugin-dialog';
 import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification';
 import { openUrl } from '@tauri-apps/plugin-opener';
-import type { BackupWriteResult, Platform, PlatformHandlers } from './types';
+import type { BackupWriteResult, CloudFolder, Platform, PlatformHandlers, SyncFile } from './types';
 
 let rest: { endsAt: number; title: string; next: string; timer: ReturnType<typeof setTimeout> | null } | null = null;
 
@@ -110,5 +110,23 @@ export const desktop: Platform = {
   },
   async readBackup(fileName) {
     return invoke<string>('backup_read', { fileName });
+  },
+
+  syncFolderMode: 'pick',
+  async pickSyncFolder(title, parent) {
+    const dir = parent ?? (await open({ directory: true, multiple: false, title }));
+    if (!dir || Array.isArray(dir)) return null;
+    return invoke<string>('sync_make_folder', { parent: dir });
+  },
+  async fixedSyncFolder() {
+    throw new Error('Desktop syncs through a folder you pick.');
+  },
+  cloudFolders: () => invoke<CloudFolder[]>('sync_cloud_folders'),
+  readSyncFiles: (dir, skipName) => invoke<SyncFile[]>('sync_read_files', { dir, skipName }),
+  async writeSyncFile(dir, fileName, contents) {
+    await invoke('sync_write_file', { dir, fileName, contents });
+  },
+  async revealFolder(dir) {
+    await invoke('sync_reveal_folder', { dir });
   },
 };

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 The Analog contributors
 import { readFileSync } from 'node:fs';
-import { carbon, paper, type Palette } from '@/theme/tokens';
+import { blueprint, carbon, darkroom, ledger, paper, type Palette } from '@/theme/tokens';
 
 // The app draws with the CSS variables; the contrast test checks src/theme/tokens.ts. This keeps the two equal,
 // so a colour changed in only one place fails here instead of slipping past the contrast check.
@@ -30,4 +30,7 @@ function expected(p: Palette): Record<string, string> {
 describe('CSS variables match the tokens', () => {
   it('Carbon (the default)', () => expect(block(":root[data-theme='carbon']")).toEqual(expected(carbon)));
   it('Paper', () => expect(block(":root[data-theme='paper']")).toEqual(expected(paper)));
+  it('Blueprint', () => expect(block(":root[data-theme='blueprint']")).toEqual(expected(blueprint)));
+  it('Darkroom', () => expect(block(":root[data-theme='darkroom']")).toEqual(expected(darkroom)));
+  it('Ledger', () => expect(block(":root[data-theme='ledger']")).toEqual(expected(ledger)));
 });

@@ -4,7 +4,7 @@
 #   • Windows installer (.exe via NSIS, plus .msi) and a portable Analog-portable.exe
 #   • Android APK (signed if the keystore secrets exist, otherwise a sideloadable debug APK)
 # Push a tag like v0.2.0 to also publish them as a GitHub Release with SHA256SUMS.txt.
-# Analog makes no network requests at build time or run time apart from the opt-in GitHub release check.
+# Analog makes no network requests at build time. At run time it only goes online for things the user opts in to (the GitHub release check, device sync, the anonymous survey).
 name: build
 
 on:

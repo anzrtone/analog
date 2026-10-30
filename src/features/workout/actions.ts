@@ -12,6 +12,7 @@ import { setTypeInfo } from '@/engine/setTypes';
 import { platform } from '@/platform';
 import { applyFinishedWorkout, startProgramDay, type RunUpdate } from '@/services/programFlow';
 import { afterSet, finish, livePrs, type WorkoutSummary } from '@/services/workoutFlow';
+import { nudgeSync } from '@/sync/runtime';
 import { runAutoBackup } from '../autoBackup';
 import { currentGym, engineSettings, rounder } from '../gym';
 import { back, navigate, replace } from '../nav';
@@ -141,6 +142,7 @@ export async function finishActiveWorkout(workoutId: string, endedAt = Date.now(
   void runAutoBackup(db, platform(), 'workout').then((r) => {
     if (r.status === 'failed') console.warn('[auto backup]', r.error);
   });
+  nudgeSync();
 }
 
 /** Move the start, which is what the elapsed counter counts from. */

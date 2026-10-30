@@ -5,6 +5,26 @@ For the plain state of each part, see [STATUS.md](STATUS.md); for every judgemen
 
 ---
 
+## 2026-10-30 · 0.4.0: sync, and nothing goes online unless you say so
+
+**Device sync, opt-in and off by default** (`src/sync`, `worker/`, More, then Sync between devices). Each device keeps a complete copy and syncing merges snapshots; there is no primary device and no account. Three ways carry the same snapshot into one `mergeBackup`:
+
+- **Pairing code:** 20 Crockford characters (100 bits), stretched with HKDF into a relay name, an AES-256-GCM key and a separate write token. The snapshot is gzipped and encrypted on the device; the relay (a Cloudflare Worker over R2, `worker/index.js`) stores only ciphertext and a hash of the token. Deployed at the address in `RELAY_URL`; its origin is in the desktop CSP.
+- **Cloud folder:** each device writes only `analog-sync-<device>.json` into a folder Dropbox, OneDrive, Google Drive, iCloud or Syncthing already syncs, and reads the others'. Rust commands in `files.rs`; Android uses the fixed `Documents/Analog`.
+- **File:** save a snapshot on one device and merge it on the other.
+
+**The merge.** Every synced row has an `updatedAt`, stamped in Dexie hooks (`src/sync/stamp.ts`) and moved forward monotonically; deletes leave tombstones (schema v3, kept 180 days). The newer edit wins per row, a tombstone beats an older copy and loses to a newer edit, and merging the same data twice changes nothing. Applying remote data runs under `skipSyncStamping()` so a merge never re-stamps rows. Preferences move as one group (`SYNCED_PREFS`, `prefsUpdatedAt`).
+
+**Left where it is:** unfinished workouts, the bundled library, progress photos and every device setting (volume, folders, the sync code itself). Ordinary backups keep their exact 0.1.0 shape; only sync snapshots carry tombstones. A row builder bug found on the way: `workoutRow`, `setRow` and `workoutExerciseRow` dropped `updatedAt`, so a restore lost it; they now keep it.
+
+**Privacy wording.** "Offline", "no servers" and "never leaves your device" are gone from About, Welcome, the tour, the README and the store text. Analog is described as private by default: the update check, sync and the anonymous survey are the only things that can go online, and each starts off. The AGPL text is untouched.
+
+**Themes and support.** Blueprint, Darkroom and Ledger join Carbon and Paper, with a preview picker in Settings. A Support me button (bundled icon, no request until pressed) sits in Settings and the dev log.
+
+**Checked:** typecheck, lint and Vitest, including new merge, transport and Worker tests against a fake database, fake `fetch` and fake R2; `cargo check` on the shell; the Worker answers a live GET with 404 and the right headers. **Not checked:** two real devices syncing, the Rust folder commands in the window, Android's `Documents/Analog` on a phone, the anonymous install count (not built), and the six-step sync tour (not built).
+
+---
+
 ## 2026-10-30 · 0.3.0: nothing under the buttons
 
 **Layout on Android (the audit).** The app is edge-to-edge, and several things ignored the system bars:

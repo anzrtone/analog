@@ -1,6 +1,6 @@
 # Analog — Design & Brand Language (v1)
 
-**Analog is the training log you own.** A paper lifting logbook, rebuilt as a free, open-source Android app. Everything stays on your phone, nothing is paywalled, and every number means something.
+**Analog is the training log you own.** A paper lifting logbook, rebuilt as a free, open-source Android app. Your data lives on your phone and nothing leaves it unless you opt in, nothing is paywalled, and every number means something.
 
 The look comes from two things every lifter already knows: **the paper training log** (cream page, ruled rows, ink, stamps) and **the bumper plate** (red, blue, yellow, green, white). The page stays calm and inky; plate colors are the only color, and they always carry meaning.
 
@@ -22,7 +22,7 @@ Fitness apps got loud: feeds, streak guilt, AI coaches, paywalls on your own his
 
 ### Taglines (pick one per context)
 - **The training log you own.** (primary)
-- Free. Offline. Yours.
+- Free. Private. Yours.
 - Write it down. Lift more.
 - No paywalls between you and your PRs.
 
@@ -342,7 +342,7 @@ Share cards are **a page torn out of the log**: Paper background, ruled lines, s
 
 - **Play Store icon**: the app icon on Paper.
 - **Feature graphic**: the wordmark on Paper with a row of five plate rings (red, blue, yellow, green, white).
-- **Screenshots**: Paper theme, with one plain caption each in Newsreader above the phone: "Every set, every PR, forever free", "Volume that adapts to you", "Progression rules that explain themselves", "Your data never leaves your phone".
+- **Screenshots**: Paper theme, with one plain caption each in Newsreader above the phone: "Every set, every PR, forever free", "Volume that adapts to you", "Progression rules that explain themselves", "Your data stays yours: nothing leaves your phone unless you opt in".
 - **Instagram grid**: alternate share-card posts with build-in-public posts on the same cream background, so the feed reads as one logbook.
 - **Reels**: open on a real paper log page turning into the app screen. That's the brand story in two seconds.
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 The Analog contributors
 import { useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react';
-import { BicepsFlexed, Check, ChevronRight, Dumbbell, Gift, HeartPulse, Lightbulb, ListChecks, MessagesSquare, NotebookPen, PenLine, RotateCcw, Search, Share2, ShieldCheck, Smartphone, Store, TvMinimalPlay, Users, Volleyball, WifiOff } from 'lucide-react';
+import { BicepsFlexed, Check, ChevronRight, Dumbbell, Gift, HeartPulse, Lightbulb, ListChecks, MessagesSquare, NotebookPen, PenLine, RotateCcw, Search, Share2, ShieldCheck, Smartphone, Store, TvMinimalPlay, Users, Volleyball } from 'lucide-react';
 import { PRIVACY_URL, SURVEY_URL } from '@/config';
 import { settings } from '@/db/settings';
 import { formatWeight } from '@/engine/math/units';
@@ -181,7 +181,7 @@ function Title({ children, hint }: { children: string; hint?: string }) {
 
 function Hello() {
   const props: [Icon, string][] = [
-    [WifiOff, 'Offline and yours. Everything stays on this device.'],
+    [ShieldCheck, 'Private and yours. Nothing leaves this device unless you choose.'],
     [Gift, 'Free for good. No ads, no account, nothing paywalled.'],
     [Lightbulb, 'Every suggested weight shows the reason behind it.'],
   ];
@@ -203,7 +203,7 @@ function Hello() {
 function NamePage({ returning, value, onChange, onSubmit }: { returning: boolean; value: string; onChange: (v: string) => void; onSubmit: () => void }) {
   return (
     <>
-      <Title hint="Only used to greet you. It never leaves this device.">{returning ? 'Can I ask your name?' : 'What’s your name?'}</Title>
+      <Title hint="Only used to greet you. Analog never collects it.">{returning ? 'Can I ask your name?' : 'What’s your name?'}</Title>
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -333,7 +333,7 @@ function Consent({ result, installId, share, onShare }: { result: WizardResult; 
   const [open, setOpen] = useState(false);
   const [now] = useState(Date.now);
   if (!answeredAny(result)) return <Title hint="You skipped the questions, so there’s nothing to share. You can answer them later in Settings.">All set.</Title>;
-  if (!SURVEY_URL) return <Title hint="Your answers stay on this device: Analog has no servers, so they’re never sent anywhere. You can change them later in Settings.">All set.</Title>;
+  if (!SURVEY_URL) return <Title hint="Your answers are saved on this device. Sharing them is always your choice, and it isn’t switched on in this version. You can change them later in Settings.">All set.</Title>;
   const preview = JSON.stringify(surveyPayload(installId ?? 'a random id, made when you turn this on', toSurvey(result, now), surveyEnv()), null, 2);
   return (
     <>

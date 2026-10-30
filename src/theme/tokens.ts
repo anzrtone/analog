@@ -21,7 +21,7 @@ export interface Plate {
 }
 
 export interface Palette {
-  name: 'paper' | 'carbon';
+  name: 'paper' | 'carbon' | 'blueprint' | 'darkroom' | 'ledger';
   paper: string;
   paperRaised: string;
   paperSunk: string;
@@ -71,8 +71,55 @@ export const carbon: Palette = {
   },
 };
 
-export const palettes = { paper, carbon } as const;
+/** Blueprint: cyanotype drawing paper, white-blue linework on deep Prussian blue. */
+export const blueprint: Palette = {
+  ...carbon,
+  name: 'blueprint',
+  plate: { ...carbon.plate, white: { ring: '#7F8AA3', text: '#A8A59C' } },
+  paper: '#0F1E36',
+  paperRaised: '#162846',
+  paperSunk: '#0B172B',
+  rule: '#26406A',
+  ink: '#E4EEFF',
+  ink2: '#AFC4E6',
+  pencil: '#8AA3CC',
+  erased: '#4A6290',
+};
+
+/** Darkroom: the safelight glow, warm near-black with a print-paper cream pen. */
+export const darkroom: Palette = {
+  ...carbon,
+  name: 'darkroom',
+  plate: { ...carbon.plate, white: { ring: '#8A7F78', text: '#A8A59C' } },
+  paper: '#1A1110',
+  paperRaised: '#241817',
+  paperSunk: '#130C0B',
+  rule: '#3A2624',
+  ink: '#F2DDD0',
+  ink2: '#C9AFA2',
+  pencil: '#9C8378',
+  erased: '#5E4A44',
+};
+
+/** Ledger: green-tinted accountant's paper with bottle-green ink. */
+export const ledger: Palette = {
+  ...paper,
+  name: 'ledger',
+  paper: '#EEF2E6',
+  paperRaised: '#F6F9F0',
+  paperSunk: '#E2E8D6',
+  rule: '#C8D1B5',
+  ink: '#1F3A2B',
+  ink2: '#46594D',
+  pencil: '#566156',
+  erased: '#9CA68F',
+  plate: { ...paper.plate, white: { ring: '#7C7968', text: '#5B5A52' } },
+};
+
+export const palettes = { paper, carbon, blueprint, darkroom, ledger } as const;
 export type ThemeName = keyof typeof palettes;
+/** Themes the user can pick that are drawn light (the rest are dark). */
+export const LIGHT_THEMES: readonly ThemeName[] = ['paper', 'ledger'];
 
 /** Ring stroke and letter colour for a ring colour name ("ink" = the plain pen colour). */
 export function ringColors(p: Palette, c: RingColor): Plate {

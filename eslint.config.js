@@ -24,6 +24,10 @@ export default tseslint.config(
     },
   },
   {
+    files: ['worker/**/*.js'],
+    languageOptions: { ecmaVersion: 2023, sourceType: 'module', globals: { ...globals.serviceworker } },
+  },
+  {
     files: ['scripts/**/*.mjs'],
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
   },

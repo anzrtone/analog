@@ -159,7 +159,7 @@ export function Sidebar() {
       ) : null}
 
       <div className="flex flex-col gap-0.5 px-2">
-        <p className="t-meta text-pencil">FREE · OPEN SOURCE · OFFLINE</p>
+        <p className="t-meta text-pencil">FREE · OPEN SOURCE · PRIVATE</p>
         <p className="line-clamp-2 text-[11px] leading-4 text-pencil">Saved to {platform().storageLabel}</p>
       </div>
     </nav>

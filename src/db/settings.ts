@@ -4,6 +4,7 @@ import { useSyncExternalStore } from 'react';
 import { liveQuery } from 'dexie';
 import { registerCustomSetTypes, type CustomSetType } from '@/engine/setTypes';
 import { DEFAULT_RAMP, type WarmupStep } from '@/engine/math/warmup';
+import type { ThemeName } from '@/theme/tokens';
 import type { ClockFormat } from '@/engine/timer/session';
 import type { WeightUnit } from '@/engine/types';
 import { db as userDb, type AnalogDB } from './schema';
@@ -13,7 +14,7 @@ import { db as userDb, type AnalogDB } from './schema';
 export interface AppSettings {
   unit: WeightUnit;
   effort: 'rir' | 'rpe';
-  theme: 'carbon' | 'paper' | 'system';
+  theme: ThemeName | 'system';
   /** 12-hour (AM/PM) or 24-hour times of day. */
   clock: ClockFormat;
   /** Which body the muscle map on Stats draws (new in 0.2.0; 0.1.0 always drew the male one). */
@@ -65,7 +66,35 @@ export interface AppSettings {
   latestRelease: LatestRelease | null;
   /** When this device last wrote an automatic backup (new in 0.2.0). Never in backups. */
   autoBackupAt: number | null;
+  /** When any SYNCED_PREFS setting last changed on any device; the newest group wins in a sync. */
+  prefsUpdatedAt: number;
+  /** Device sync (off unless the user sets it up). Never in backups and never synced. */
+  sync: SyncSettings;
 }
+
+export type SyncMethod = 'off' | 'relay' | 'folder' | 'file';
+
+export interface SyncSettings {
+  method: SyncMethod;
+  /** The pairing code, normalised (20 characters). Anyone holding it can read the synced data: keep it private. */
+  code: string | null;
+  /** Names this device's file in a sync folder. Made on first use. */
+  deviceId: string | null;
+  /** The synced cloud folder (desktop). */
+  dir: string | null;
+  auto: boolean;
+  lastAt: number | null;
+  lastError: string | null;
+  lastSummary: string | null;
+  /** Fingerprint of what this device last uploaded, so an unchanged sync uploads nothing. */
+  lastPushHash: string | null;
+  lastBlobHash: string | null;
+}
+
+export const DEFAULT_SYNC: SyncSettings = { method: 'off', code: null, deviceId: null, dir: null, auto: true, lastAt: null, lastError: null, lastSummary: null, lastPushHash: null, lastBlobHash: null };
+
+/** The settings that follow the person from device to device. Volume, notifications, folders and ids stay per device. */
+export const SYNCED_PREFS: (keyof AppSettings)[] = ['unit', 'effort', 'theme', 'clock', 'bodyFigure', 'defaultRestMs', 'holdCountdown', 'holdCues', 'holdHundredths', 'warmupRamp', 'warmupBar', 'maxJumpPct', 'customSetTypes', 'customMeasurements', 'profile'];
 
 export interface LatestRelease {
   version: string;
@@ -85,7 +114,7 @@ export interface Survey {
 }
 
 /** Device-only settings: never exported, and a restore keeps this device's values. */
-export const DEVICE_ONLY_SETTINGS: string[] = ['installId', 'surveySentAt', 'lastSeenVersion', 'updateCheckedAt', 'latestRelease', 'autoBackupAt'];
+export const DEVICE_ONLY_SETTINGS: string[] = ['installId', 'surveySentAt', 'lastSeenVersion', 'updateCheckedAt', 'latestRelease', 'autoBackupAt', 'sync'];
 
 export const DEFAULT_SETTINGS: AppSettings = {
   unit: 'kg',
@@ -126,6 +155,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   updateCheckedAt: null,
   latestRelease: null,
   autoBackupAt: null,
+  prefsUpdatedAt: 0,
+  sync: DEFAULT_SYNC,
 };
 
 export async function loadSettings(d: AnalogDB): Promise<AppSettings> {
@@ -133,13 +164,25 @@ export async function loadSettings(d: AnalogDB): Promise<AppSettings> {
   const out: Record<string, unknown> = { ...DEFAULT_SETTINGS };
   for (const r of rows) if (r.key in DEFAULT_SETTINGS) out[r.key] = r.value;
   const loaded = out as unknown as AppSettings;
+  loaded.sync = { ...DEFAULT_SYNC, ...loaded.sync };
   registerCustomSetTypes(loaded.customSetTypes);
   return loaded;
 }
 
 /** Several settings in one transaction. A null deletes the row, so every nullable setting reads back as its default. */
-export async function saveSettings(d: AnalogDB, patch: Partial<AppSettings>): Promise<void> {
+export async function saveSettings(d: AnalogDB, patch: Partial<AppSettings>, now = Date.now()): Promise<void> {
   await d.transaction('rw', d.settings, async () => {
+    // A changed preference moves the whole group's clock, so the newest edit wins on the next sync.
+    if (patch.prefsUpdatedAt === undefined) {
+      for (const key of SYNCED_PREFS) {
+        if (!(key in patch)) continue;
+        const was = (await d.settings.get(key))?.value ?? DEFAULT_SETTINGS[key];
+        if (JSON.stringify(was) !== JSON.stringify(patch[key] ?? DEFAULT_SETTINGS[key])) {
+          patch = { ...patch, prefsUpdatedAt: now };
+          break;
+        }
+      }
+    }
     for (const [key, value] of Object.entries(patch)) {
       if (value === null || value === undefined) await d.settings.delete(key);
       else await d.settings.put({ key, value });

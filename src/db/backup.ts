@@ -3,7 +3,8 @@
 import { groupLabels } from '@/engine/timer/rest';
 import type { ExportSetRow } from '@/engine/export/csv';
 import { exerciseRow } from './exercises';
-import { TABLE_NAMES, tables, type AnalogDB, type TableName, type WorkoutRow } from './schema';
+import { TABLE_NAMES, tables, type AnalogDB, type TableName, type TombstoneRow, type WorkoutRow } from './schema';
+import { skipSyncStamping } from '@/sync/stamp';
 import { DEVICE_ONLY_SETTINGS } from './settings';
 import { finishedWorkouts, getWorkout, setRow, workoutExerciseRow, workoutRow } from './workouts';
 import { getExercises } from './exercises';
@@ -17,18 +18,23 @@ export interface BackupFile {
   format: 1;
   exportedAt: number;
   tables: Record<TableName, unknown[]>;
+  /** Graves of deleted rows, for device sync. Older readers ignore it, and a restore does not use it. */
+  tombstones?: TombstoneRow[];
 }
 
-export async function exportAll(d: AnalogDB, now = Date.now()): Promise<BackupFile> {
+/** `graves`: also include the tombstones of deleted rows (sync snapshots do; an ordinary backup stays exactly the 0.1.0 shape). */
+export async function exportAll(d: AnalogDB, now = Date.now(), opts: { graves?: boolean } = {}): Promise<BackupFile> {
   const out = {} as Record<TableName, unknown[]>;
-  await d.transaction('r', tables(d), async () => {
+  let tombstones: TombstoneRow[] = [];
+  await d.transaction('r', [...tables(d), d.tombstones], async () => {
     for (const name of TABLE_NAMES) out[name] = await d.table(name).toArray();
+    if (opts.graves) tombstones = await d.tombstones.toArray();
   });
   // `open` is only an index helper; it isn't part of the user's data.
   out.workouts = (out.workouts as WorkoutRow[]).map(({ open: _open, ...w }) => w);
   // The anonymous survey id and what this device has seen belong to the install, not to the user's data.
   out.settings = (out.settings as { key: string }[]).filter((r) => !DEVICE_ONLY_SETTINGS.includes(r.key));
-  return { app: 'analog', format: 1, exportedAt: now, tables: out };
+  return { app: 'analog', format: 1, exportedAt: now, tables: out, ...(opts.graves ? { tombstones } : {}) };
 }
 
 export type RestoreCheck = { ok: true; file: BackupFile; counts: Record<string, number> } | { ok: false; error: string };
@@ -53,7 +59,7 @@ export function checkBackup(text: string): RestoreCheck {
 }
 
 /** Rows as the database stores them: every field present (0.1.0 defaults for any a file leaves out). */
-function normalise(name: TableName, rows: unknown[]): unknown[] {
+export function normalise(name: TableName, rows: unknown[]): unknown[] {
   switch (name) {
     case 'workouts':
       return (rows as Parameters<typeof workoutRow>[0][]).map((w) => workoutRow(w));
@@ -73,6 +79,8 @@ function normalise(name: TableName, rows: unknown[]): unknown[] {
 /** Replace everything with the backup's contents, in one transaction: all or nothing. This device's own settings stay. */
 export async function restoreAll(d: AnalogDB, file: BackupFile): Promise<void> {
   await d.transaction('rw', tables(d), async () => {
+    // The file's rows keep the stamps they came with; this is not an edit made now.
+    skipSyncStamping();
     for (const name of TABLE_NAMES) {
       if (name === 'settings') await d.settings.filter((r) => !DEVICE_ONLY_SETTINGS.includes(r.key)).delete();
       else await d.table(name).clear();

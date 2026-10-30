@@ -27,7 +27,7 @@ const row = (title: string, to: Route, hint?: string) => ({ title, to, hint });
 
 const GROUPS = [
   { title: 'TRAINING', rows: [row('Bodyweight and measurements', { name: 'measurements' })] },
-  { title: 'YOUR DATA', rows: [row('Import from Strong or Hevy', { name: 'import' }, 'CSV'), row('Backup and export', { name: 'backup' }, 'JSON, CSV, restore')] },
+  { title: 'YOUR DATA', rows: [row('Import from Strong or Hevy', { name: 'import' }, 'CSV'), row('Backup and export', { name: 'backup' }, 'JSON, CSV, restore'), row('Sync between devices', { name: 'sync' }, 'optional, off by default')] },
   { title: 'APP', rows: [row('Settings', { name: 'settings' }), row('About Analog', { name: 'about' }), row('Dev log', { name: 'devlog' }, 'what changed in each release')] },
 ];
 
@@ -57,8 +57,8 @@ export function AboutScreen() {
       <Pad className="flex flex-col gap-3">
         <Wordmark size={34} />
         <p className="t-title-m">The training log you own.</p>
-        <p className="text-ink2">Free, open source and offline. No account, no servers, no ads, no tracking, nothing paywalled. Your data stays on this device.</p>
-        <p className="text-ink2">The only thing it ever asks the internet is GitHub’s newest version number, and only when you tap Check in the dev log or turn on the daily check.</p>
+        <p className="text-ink2">Free, open source and private by design. No account, no ads, no tracking, nothing paywalled. Your data lives on this device, and nothing leaves it unless you opt in.</p>
+        <p className="text-ink2">Everything that goes online is optional and starts switched off: asking GitHub for the newest version number, syncing between your own devices (scrambled before it leaves), and sharing your welcome answers anonymously. Nothing else is ever sent.</p>
         <button type="button" className="btn-ghost self-start" onClick={() => navigate({ name: 'devlog' })}>
           Dev log: what changed in each release
         </button>

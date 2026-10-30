@@ -27,7 +27,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self' ipc: http://ipc.localhost; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; media-src 'self' data: blob:; connect-src 'self' ipc: http://ipc.localhost https://api.github.com"
+      "csp": "default-src 'self' ipc: http://ipc.localhost; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; media-src 'self' data: blob:; connect-src 'self' ipc: http://ipc.localhost https://api.github.com https://analog-sync.promodoro.workers.dev"
     }
   },
   "bundle": {
@@ -35,7 +35,7 @@
     "targets": ["nsis", "msi"],
     "category": "HealthcareAndFitness",
     "shortDescription": "A private gym logbook",
-    "longDescription": "Analog is a free, private training log: programs, sets, rest timer, history and stats. No account, no ads, no tracking; everything stays on your device.",
+    "longDescription": "Analog is a free, private training log: programs, sets, rest timer, history and stats. No account, no ads, no tracking; your data stays on your device unless you opt in to sync.",
     "copyright": "© The Analog contributors. AGPL-3.0-only.",
     "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
     "windows": {
