@@ -42,5 +42,6 @@ Honest state of the rebuild. "Verified" means a test or a check actually ran on 
 - **Exact alarms:** Android 14+ denies `SCHEDULE_EXACT_ALARM` by default. Without it the end-of-rest alert can be a little late with the screen locked. Settings links to the permission page.
 - **Android Auto Backup carries the automatic backups, not the live database.** After moving to a new phone, the user restores from More → Backup; it doesn't happen on its own. The newest backup is at most a day (or one workout) old.
 - **IndexedDB can be cleared** by the system or the user (clearing the WebView's or browser's site data). The app asks for persistent storage at launch; the automatic backups are the safety net.
+- **0.1.0 Windows data doesn't move over on its own.** 0.1.0's Electron app kept `%APPDATA%\Analog\analog.db`; 0.2.0 keeps IndexedDB in its own WebView profile. Users export a backup from 0.1.0 (Backup and export) and restore it in 0.2.0. The release notes should say so.
 - **The Windows .exe is unsigned:** SmartScreen warns on first run.
 - **The JS bundle is one 1.7 MB chunk**, most of it the exercise library. It loads from local files on both platforms, so it hasn't been split.
