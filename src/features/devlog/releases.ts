@@ -25,6 +25,7 @@ export interface Release {
 export const RELEASES: Release[] = [
   {
     version: '0.2.0',
+    date: '2026-10-30',
     summary: 'The same logbook, rebuilt from the ground up. It opens faster, weighs less, and Android gets a real app with the rest timer on your lock screen.',
     notes: [
       { tag: 'better', text: 'Rebuilt on a lighter stack, so screens open faster.' },
