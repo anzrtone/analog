@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+: what goes into Google's device backup and phone-to-phone transfer.
+     The automatic daily backups only (files/backups, written by the app as whole, consistent JSON files), not the
+     WebView's live IndexedDB, which could be copied mid-write. After a restore, More → Backup lists them. -->
+<data-extraction-rules>
+  <cloud-backup>
+    <include domain="file" path="backups" />
+    <include domain="sharedpref" path="." />
+  </cloud-backup>
+  <device-transfer>
+    <include domain="file" path="backups" />
+    <include domain="sharedpref" path="." />
+  </device-transfer>
+</data-extraction-rules>

@@ -1,0 +1,17 @@
+{
+  "appId": "app.analoglog",
+  "appName": "Analog",
+  "webDir": "dist",
+  "android": {
+    "backgroundColor": "#17181C",
+    "allowMixedContent": false,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
+  },
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_analog",
+      "iconColor": "#D93F3C"
+    }
+  }
+}

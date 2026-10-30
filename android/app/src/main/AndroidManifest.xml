@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Auto Backup carries the automatic daily backups (files/backups) to a new phone; see res/xml. -->
+    <application
+        android:allowBackup="true"
+        android:fullBackupContent="@xml/analog_backup_rules"
+        android:dataExtractionRules="@xml/analog_data_extraction_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/AppTheme">
+
+        <activity
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
+            android:name=".MainActivity"
+            android:label="@string/title_activity_main"
+            android:theme="@style/AppTheme.NoActionBarLaunch"
+            android:launchMode="singleTask"
+            android:windowSoftInputMode="adjustResize"
+            android:exported="true">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- Shared programs: analog://program?d=… opens the import screen. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="analog" android:host="program" />
+            </intent-filter>
+
+        </activity>
+
+        <!-- The rest notification's −15 / +15 / Skip and the stopwatch's Stop. -->
+        <receiver
+            android:name=".TimerActionReceiver"
+            android:exported="false" />
+
+        <!-- End of rest: the bell and two pulses, even with the app closed. -->
+        <receiver
+            android:name=".RestAlarmReceiver"
+            android:exported="false" />
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths"></meta-data>
+        </provider>
+    </application>
+
+    <!-- Permissions: only what Analog uses. No microphone, no advertising id, no legacy storage. -->
+
+    <!-- The app loads from local assets. The one request is the optional GitHub release check (off by default). -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- The rest countdown, workout note and "Rest over" alert on the lock screen (asked for on Android 13+). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- User-grantable on Android 14+. Without it the end-of-rest alert may arrive a little late. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <!-- Haptics on set ticks and the two pulses at the end of rest. -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- @capacitor/local-notifications is only used to ask for the notification permission; Analog schedules
+         nothing through it, so the two it adds for rescheduling after a reboot are left out. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" tools:node="remove" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" tools:node="remove" />
+</manifest>
