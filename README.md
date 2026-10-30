@@ -102,6 +102,6 @@ Everything is stored on your device, in the app's own IndexedDB. Analog sends no
 
 ## Licences
 
-Analog is free software, licensed under the [GNU Affero General Public License v3.0](LICENSE) (`AGPL-3.0-only`). Copyright (c) 2026 The Analog contributors. Every source file carries an SPDX header. If you modify Analog and run it as a network service, or distribute it, you must offer your users the corresponding source under the same licence (AGPL §13). The in-app About screen links to the source. Exercise data: [free-exercise-db](https://github.com/yuhonas/free-exercise-db) (Unlicense). Fonts: Newsreader, IBM Plex Mono, Inter (SIL OFL 1.1). Icons: Lucide (ISC). Every runtime dependency is MIT, Apache-2.0, BSD or ISC.
+Analog is free software, licensed under the [GNU Affero General Public License v3.0](LICENSE) (`AGPL-3.0-only`). Copyright (c) 2026 The Analog contributors. Every source file carries an SPDX header. If you modify Analog and run it as a network service, or distribute it, you must offer your users the corresponding source under the same licence (AGPL §13). The in-app About screen links to the source. Exercise data: [free-exercise-db](https://github.com/yuhonas/free-exercise-db) (Unlicense). Fonts: Newsreader, IBM Plex Mono, Inter (SIL OFL 1.1). Icons: Lucide (ISC). Body diagram artwork: react-native-body-highlighter (MIT, `src/components/body/LICENSE`). Every runtime dependency is MIT, Apache-2.0, BSD or ISC.
 
 Analog is a training log, not medical advice.
