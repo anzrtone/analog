@@ -63,7 +63,18 @@ const b = {
   },
   async goto(url = URL) {
     await send('Page.navigate', { url });
-    await sleep(2500);
+    await sleep(800);
+    await b.ready();
+  },
+  /** Wait until the app has booted and drawn its first page (a cold dev server and a first-run seed take a while). */
+  async ready(timeout = 60000) {
+    const t0 = Date.now();
+    while (Date.now() - t0 < timeout) {
+      const up = await send('Runtime.evaluate', { expression: "!!window.analog && document.getElementById('root')?.childElementCount > 0", returnByValue: true }).catch(() => null);
+      if (up?.result?.value) return sleep(1200);
+      await sleep(300);
+    }
+    throw new Error('the app did not start');
   },
   /** Evaluate an expression (or async function body) in the page and return its value. */
   async eval(expr) {

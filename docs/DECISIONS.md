@@ -57,3 +57,10 @@ Choices made while rebuilding Analog 0.2.0 on the Promodoro stack, with the reas
 - **Spine links start a fresh page stack**, so a page opened from the spine has no back arrow; the arrow shows only when there is a page to go back to.
 - **The kitchen sink moved into the developer group with the admin console** (the prompt: admin and kitchen sink only in dev builds). Both are compiled out of release builds through `__DEV_BUILD__`.
 - **The admin console's demo history** (`src/dev/admin.ts`) is 0.1.0's, ported to async: three programs played through the real engine, freestyle sessions with every set type, measurements, gyms.
+
+## Welcome, tour, survey, dev log
+
+- **The welcome wizard and the tour spotlight are DOM ports** of 0.1.0's screens, built on Promodoro's `OnboardingScreen` and `TourOverlay` patterns (a data-tour attribute marks each target; the visible match wins, so the phone tab bar and the spine can carry the same id).
+- **The tour's sample is its own Dexie database** (`analog-tour-sample`), built from today's date when the tour starts and deleted when it ends. Screens read it through `readDb()`; programs made during the tour go to the user's database on purpose (that's the point of those steps); ticking a sample set changes only the sample.
+- **The tour host's `makeProgram` and `makeDay` are async** (Dexie), so `makeStep` awaits them; the tour tests were ported with `await` and kept every expectation.
+- **The survey keeps `SURVEY_URL = null`**: nothing is ever sent, the consent page says the answers stay on the device, and Settings hides the sharing switch. The send/withdraw logic and its tests are carried over unchanged.

@@ -10,6 +10,9 @@ import { db, requestPersistence } from '@/db/schema';
 import { patchSettings, settings, watchSettings } from '@/db/settings';
 import { runAutoBackup } from '@/features/autoBackup';
 import { handleBack } from '@/features/back';
+import { startDevlog } from '@/features/devlog/store';
+import { startOnboardingIfNeeded } from '@/features/onboarding/store';
+import { installTourHost } from '@/features/tour/host';
 import { navigate } from '@/features/nav';
 import { applyNativeAction, applyNativeActions } from '@/features/workout/timers';
 import { loadPlatform } from '@/platform';
@@ -53,6 +56,9 @@ async function boot() {
       <App />
     </StrictMode>,
   );
+  installTourHost();
+  await startOnboardingIfNeeded();
+  startDevlog();
 }
 
 boot().catch((err) => {

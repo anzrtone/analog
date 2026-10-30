@@ -8,6 +8,8 @@ import { useWide } from '@/features/responsive';
 import { useGlobalShortcuts } from '@/features/shortcuts';
 import { closeTopOverlay, cx } from '@/components/ui';
 import { DialogHost } from '@/components/Dialog';
+import { TourOverlay } from '@/components/TourOverlay';
+import { OnboardingHost } from '@/components/Welcome';
 import { Sidebar } from '@/components/Sidebar';
 import { ExercisesScreen } from '@/screens/ExercisesScreen';
 import { BackupScreen } from '@/screens/BackupScreen';
@@ -72,6 +74,8 @@ export function App() {
         </nav>
       )}
 
+      <TourOverlay />
+      <OnboardingHost />
       <DialogHost />
     </div>
   );
