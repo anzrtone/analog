@@ -2,6 +2,7 @@
 // Copyright (c) 2026 The Analog contributors
 /** Logbook UI primitives: ruled rows, margin notes, sheets and the one-primary-button rule (BRAND §6–7). */
 import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { ArrowLeft, X } from 'lucide-react';
 import { back, useNav } from '@/features/nav';
 
@@ -67,7 +68,7 @@ export function Screen({ title, meta, children, footer, right, backButton: wants
         </div>
       </div>
       {footer ? (
-        <div className="sticky bottom-0 z-10 bg-paper py-2 safe-pb wide:border-t wide:border-rule">
+        <div className="sticky bottom-0 z-10 bg-paper pb-[calc(var(--sab)+8px)] pt-2 wide:border-t wide:border-rule">
           <div className="mx-auto w-full px-margin" style={{ maxWidth }}>
             {footer}
           </div>
@@ -261,10 +262,11 @@ export function Pad({ children, className, tour }: { children: ReactNode; classN
 export function Sheet({ open, onClose, title, children, footer }: { open: boolean; onClose: () => void; title?: ReactNode; children: ReactNode; footer?: ReactNode }) {
   useBackClose(open, onClose);
   if (!open) return null;
-  return (
+  // Portalled to <body>: a sheet inside a page would be placed by that page's transform or scroller, not the screen.
+  return createPortal(
     <div className="fixed inset-0 z-40 flex items-end justify-center wide:items-center wide:p-8" role="dialog" aria-modal="true" aria-label={typeof title === 'string' ? title : undefined}>
       <div className="absolute inset-0 animate-fade-in bg-scrim/45" onClick={onClose} />
-      <div className="relative flex max-h-[88vh] w-full animate-sheet-up flex-col rounded-t-sheet bg-raised pb-2 safe-pb wide:max-h-[86vh] wide:max-w-[560px] wide:animate-card-in wide:rounded-sheet wide:border wide:border-rule wide:pb-4">
+      <div className="relative flex max-h-[calc(100dvh-var(--sat)-16px)] w-full animate-sheet-up flex-col rounded-t-sheet bg-raised pb-[calc(var(--sab)+8px)] wide:max-h-[86dvh] wide:max-w-[560px] wide:animate-card-in wide:rounded-sheet wide:border wide:border-rule wide:pb-4">
         <div className="flex justify-center pt-2 wide:hidden">
           <div className="h-1 w-9 rounded-full bg-rule" />
         </div>
@@ -277,7 +279,8 @@ export function Sheet({ open, onClose, title, children, footer }: { open: boolea
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{children}</div>
         {footer ? <div className="px-margin pt-2 wide:px-6">{footer}</div> : null}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

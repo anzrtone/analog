@@ -10,7 +10,8 @@ import { formatClock, formatWeight, parseWeightInput } from '@/engine/math/units
 import { DEFAULT_LANDMARKS } from '@/engine/meso';
 import { RULE_LABEL, defaultParams, type RuleParams, type RuleType, type TmParams } from '@/engine/progression';
 import type { Block, Day, Program, ProgramSet, Slot } from '@/engine/programs/types';
-import { setTypeInfo, type SetType } from '@/engine/setTypes';
+import { setTypeInfo, type CustomSetType, type SetType } from '@/engine/setTypes';
+import { blankCustomSetType, CustomSetTypeEditor } from '@/components/workout/SetSheets';
 import { groupLabels } from '@/engine/timer/rest';
 import { MUSCLE_LABEL, type Muscle } from '@/engine/types';
 import { useData } from '@/features/data';
@@ -337,6 +338,8 @@ function SlotEditor({ slot, block, week, unit, nextSlot, onChange, onPick, onClo
   const sets = ov?.sets ?? slot.sets;
   const first = sets[0] ?? { type: 'working' as const, reps: 8, repsMax: 12, rir: 2, pct: null, timeMs: null };
   const [tm, setTm] = useState(slot.rule.type === 'tm' && slot.rule.startTmG ? formatWeight(slot.rule.startTmG, unit) : '');
+  const custom = useSettings().customSetTypes;
+  const [newType, setNewType] = useState<CustomSetType | null>(null);
 
   const setSets = (next: ProgramSet[]) =>
     onChange((b, d) => {
@@ -346,6 +349,8 @@ function SlotEditor({ slot, block, week, unit, nextSlot, onChange, onPick, onClo
   const all = (patch: Partial<ProgramSet>) => setSets(sets.map((s) => ({ ...s, ...patch })));
   const setRule = (rule: RuleParams) => onChange((_, d) => void (d.slots.find((x) => x.id === slot.id)!.rule = rule));
 
+  if (newType) return <CustomSetTypeEditor initial={newType} isNew={!custom.some((c) => c.id === newType.id)} onDone={() => setNewType(null)} />;
+
   return (
     <div>
       <RuledRow onClick={onPick} label="Change exercise">
@@ -354,7 +359,7 @@ function SlotEditor({ slot, block, week, unit, nextSlot, onChange, onPick, onClo
       <Stepper label="Sets" value={sets.length} min={1} max={12} onChange={(n) => setSets(n > sets.length ? [...sets, ...Array.from({ length: n - sets.length }, () => ({ ...(sets[sets.length - 1] ?? first) }))] : sets.slice(0, n))} />
       <p className="t-meta px-margin pt-2 text-pencil">SET TYPE</p>
       <Pad className="flex flex-wrap gap-2 py-2">
-        {SET_CHOICES.map((t) => (
+        {[...SET_CHOICES, ...custom.map((c) => c.id)].map((t) => (
           <button
             key={t}
             type="button"
@@ -365,6 +370,10 @@ function SlotEditor({ slot, block, week, unit, nextSlot, onChange, onPick, onClo
             {setTypeInfo(t).label}
           </button>
         ))}
+        <button type="button" className="btn-ghost btn-compact" onClick={() => setNewType(blankCustomSetType())}>
+          <Plus size={16} />
+          New set type
+        </button>
       </Pad>
       {setTypeInfo(first.type).timed ? (
         <Stepper label="Target seconds" value={Math.round((first.timeMs ?? 30000) / 1000)} min={5} max={600} onChange={(v) => all({ timeMs: v * 1000 })} />

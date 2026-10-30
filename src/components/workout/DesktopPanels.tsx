@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 The Analog contributors
 import { useEffect, useState } from 'react';
-import { Keyboard, Pencil, Plus } from 'lucide-react';
+import { Keyboard, Pencil, Plus, X } from 'lucide-react';
 import type { Exercise } from '@/db/exercises';
-import { useSettings } from '@/db/settings';
+import { patchSettings, useSettings } from '@/db/settings';
 import type { FullWorkout, WorkoutSet } from '@/db/workouts';
 import { readDb } from '@/db/shown';
 import { formatClock, formatSet, formatWeight } from '@/engine/math/units';
@@ -104,10 +104,7 @@ export function WorkoutMargin({ startedAt, onClock, focus, exercise, explanation
       {resting ? (
         <RestTimer variant="panel" />
       ) : (
-        <div className="flex flex-col gap-1 rounded-sheet border-[1.5px] border-dashed border-rule p-4">
-          <span className="t-meta text-pencil">REST</span>
-          <span className="text-ink2">Starts when you tick a set. Supersets rest after the last exercise of the round.</span>
-        </div>
+        <RestHint />
       )}
 
       {focus && exercise ? (
@@ -117,8 +114,7 @@ export function WorkoutMargin({ startedAt, onClock, focus, exercise, explanation
           <span className="t-num-l">{info?.timed ? formatClock(focus.timeMs ?? focus.targetTimeMs ?? 0) : formatSet(w, focus.reps ?? focus.targetReps, unit)}</span>
           {load ? (
             <div>
-              {belt ? null : <BarDiagram perSide={load.perSide} scale={0.8} />}
-              <p className="t-hint text-ink2">{load.explanation}</p>
+              <PlateLoad exercise={exercise} set={focus} scale={0.8} />
             </div>
           ) : w && exercise.equipment !== 'bodyweight' ? (
             <p className="t-hint">{`${formatWeight(w, unit)} ${unit} on the ${exercise.equipment}`}</p>
@@ -153,5 +149,37 @@ export function WorkoutMargin({ startedAt, onClock, focus, exercise, explanation
           : null}
       </div>
     </aside>
+  );
+}
+
+/** A one-time hint about the rest timer. The X closes it for good. */
+function RestHint() {
+  const dismissed = useSettings().hintsDismissed;
+  if (dismissed.includes('rest')) return null;
+  return (
+    <div className="relative flex flex-col gap-1 rounded-sheet border-[1.5px] border-dashed border-rule p-4 pr-12">
+      <span className="t-meta text-pencil">REST</span>
+      <span className="text-ink2">Starts when you tick a set. Supersets rest after the last exercise of the round.</span>
+      <button type="button" aria-label="Close this hint for good" className="absolute right-1 top-1 inline-flex h-touch w-touch items-center justify-center rounded-control text-pencil hover:bg-paper" onClick={() => void patchSettings({ hintsDismissed: [...dismissed, 'rest'] })}>
+        <X size={18} strokeWidth={1.75} />
+      </button>
+    </div>
+  );
+}
+
+/** The bar with its plates for one set, and the per-side sum. Used in the desktop margin and under each lift on the phone. */
+export function PlateLoad({ exercise, set, scale = 0.8, compact }: { exercise: Exercise; set: WorkoutSet; scale?: number; compact?: boolean }) {
+  const unit = useSettings().unit;
+  const gym = useData<GymProfile | null>(() => currentGym(readDb()), [], null);
+  const w = set.weightG ?? set.targetWeightG;
+  const barbell = exercise.equipment === 'barbell' || exercise.equipment === 'ezBar' || exercise.equipment === 'smith';
+  const belt = exercise.equipment === 'dipBelt';
+  const load = gym && w ? (barbell ? loadBarbell(w, gym.barG, gym.plates, 'nearest', unit) : belt ? loadDipBelt(w, gym.plates, 'nearest', unit) : null) : null;
+  if (!load) return null;
+  return (
+    <div className={cx(compact && 'flex items-center gap-3')}>
+      {belt ? null : <div className={cx(compact && 'w-[140px] shrink-0')}><BarDiagram perSide={load.perSide} scale={scale} /></div>}
+      <p className="t-hint text-ink2">{load.explanation}</p>
+    </div>
   );
 }

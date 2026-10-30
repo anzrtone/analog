@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 The Analog contributors
 import { useMemo, useState } from 'react';
-import { getExercise, listExercises, searchExercises, toInfo, type Exercise } from '@/db/exercises';
+import { getExercise, listExercises, searchExercises, sessionCounts, toInfo, type Exercise } from '@/db/exercises';
 import { editDb } from '@/db/shown';
 import { swapExercise } from '@/db/workouts';
 import { rankSubstitutes } from '@/engine/exercises/substitutes';
@@ -22,6 +22,7 @@ export function ExercisesScreen({ pick, swap, target, picker: pickerToken }: { p
   const [showStretches, setShowStretches] = useState(false);
   const [shown, setShown] = useState(PAGE);
   const all = useData((d) => listExercises(d), [], [] as Exercise[]);
+  const used = useData((d) => sessionCounts(d), [], new Map<string, number>());
   const targetEx = useData((d) => (target ? getExercise(d, target) : Promise.resolve(null)), [target], null);
 
   const ranked = useMemo(() => (targetEx ? rankSubstitutes(toInfo(targetEx), all.map(toInfo), 12) : []), [targetEx, all]);
@@ -29,8 +30,10 @@ export function ExercisesScreen({ pick, swap, target, picker: pickerToken }: { p
     let l = all;
     if (!showStretches && !q) l = l.filter((e) => e.category !== 'stretching');
     if (muscle !== 'all') l = l.filter((e) => e.primary.includes(muscle));
+    // Browsing: what you log most comes first, the rest stay alphabetical (the sort is stable). Searching keeps relevance.
+    if (!q && used.size) l = [...l].sort((a, b) => (used.get(b.id) ?? 0) - (used.get(a.id) ?? 0));
     return searchExercises(l, q);
-  }, [all, q, muscle, showStretches]);
+  }, [all, q, muscle, showStretches, used]);
 
   const choose = (e: Exercise) => {
     if (pick) {

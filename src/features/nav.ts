@@ -5,10 +5,10 @@ import { useSyncExternalStore } from 'react';
 // Navigation without a router library: a typed back stack. Tabs reset it; pushed pages stack on top;
 // the Android back button and the in-app back arrow walk it (see App.tsx).
 
-export type Tab = 'today' | 'history' | 'programs' | 'stats' | 'more';
+export type Tab = 'today' | 'history' | 'programs' | 'stats' | 'exercises' | 'gyms' | 'more';
 
 export type Route =
-  | { name: Tab }
+  | { name: Exclude<Tab, 'exercises'> }
   | { name: 'workout'; id: string }
   | { name: 'summary'; id: string }
   | { name: 'workoutDetail'; id: string }
@@ -18,8 +18,7 @@ export type Route =
   | { name: 'mesoReport'; runId?: string }
   | { name: 'exercises'; pick?: string; swap?: string; target?: string; workout?: string; picker?: string }
   | { name: 'exercise'; id: string }
-  | { name: 'exerciseEdit'; id?: string }
-  | { name: 'gyms' }
+  | { name: 'exerciseEdit'; id?: string; /** Name to start a new exercise with. */ prefill?: string; /** Hand the new exercise back to this picker token (the import mapping). */ picker?: string }
   | { name: 'gym'; id: string }
   | { name: 'measurements' }
   | { name: 'import' }
@@ -35,8 +34,9 @@ export type RouteName = Route['name'];
 /** Share cards: `id` is a workout, PR, program or exercise id; "month" or "year" for Wrapped; a run id (or "") for the meso recap. */
 export type ShareKind = 'workout' | 'pr' | 'program' | 'progress' | 'meso' | 'wrapped';
 
-export const TABS: Tab[] = ['today', 'history', 'programs', 'stats', 'more'];
-export const isTab = (r: Route): r is { name: Tab } => (TABS as string[]).includes(r.name);
+export const TABS: Tab[] = ['today', 'history', 'programs', 'stats', 'exercises', 'gyms', 'more'];
+/** A tab is a bare page. The exercise library opened as a picker (a workout, a swap, the builder, an import) carries params and is pushed instead. */
+export const isTab = (r: Route): r is { name: Tab } => (TABS as string[]).includes(r.name) && Object.keys(r).length === 1;
 
 let stack: Route[] = [{ name: 'today' }];
 const subs = new Set<() => void>();

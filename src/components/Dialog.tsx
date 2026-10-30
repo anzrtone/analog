@@ -33,15 +33,17 @@ export function DialogHost() {
     if (open) primary.current?.focus();
   }, [open]);
   if (!open) return null;
+  // Three or more choices stack full-width (primary on top, cancel last) instead of wrapping into a ragged row.
+  const stacked = open.buttons.length > 2;
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-6" role="alertdialog" aria-modal="true" aria-labelledby="dialog-title">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 pb-[calc(var(--sab)+24px)] pt-[calc(var(--sat)+24px)]" role="alertdialog" aria-modal="true" aria-labelledby="dialog-title">
       <div className="absolute inset-0 animate-fade-in bg-scrim/50" onClick={() => (cancel ? press(cancel) : close())} />
       <div className="relative flex w-full max-w-[420px] animate-card-in flex-col gap-3 rounded-sheet bg-raised p-6">
         <h2 id="dialog-title" className="t-title-m">
           {open.title}
         </h2>
         {open.message ? <p className="whitespace-pre-line text-ink2">{open.message}</p> : null}
-        <div className="mt-2 flex flex-wrap justify-end gap-2">
+        <div className={cx('mt-2 flex gap-2', stacked ? 'flex-col-reverse [&>button]:w-full' : 'flex-wrap justify-end')}>
           {open.buttons.map((b, i) => {
             const last = i === open.buttons.length - 1;
             return (

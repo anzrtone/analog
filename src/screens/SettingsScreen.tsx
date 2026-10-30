@@ -4,11 +4,14 @@ import { useEffect, useState } from 'react';
 import { SURVEY_URL } from '@/config';
 import { patchSettings, useSettings, type AppSettings } from '@/db/settings';
 import { formatClock } from '@/engine/math/units';
+import { WARMUP_PRESETS } from '@/engine/math/warmup';
 import { navigate } from '@/features/nav';
 import { openOnboarding, setSharing } from '@/features/onboarding/store';
 import { startTour } from '@/features/tour/store';
 import { platform } from '@/platform';
 import { ChoiceRow, Field, MarginNote, Pad, Screen, Section, Segmented, ToggleRow } from '@/components/ui';
+
+const PRESET_KEYS = Object.keys(WARMUP_PRESETS) as (keyof typeof WARMUP_PRESETS)[];
 
 const set = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void patchSettings({ [key]: value } as Partial<AppSettings>);
 
@@ -97,6 +100,20 @@ export function SettingsScreen() {
             ) : null}
           </Pad>
         ) : null}
+      </Section>
+
+      <Section title="WARM-UPS">
+        <ChoiceRow label="Add warm-ups" hint={s.warmupRamp.map((x) => `${Math.round(x.pct * 100)}% × ${x.reps}`).join(', ') + (s.warmupBar ? ', after an empty-bar set' : '')}>
+          <Segmented<string>
+            label="Warm-up amount"
+            value={PRESET_KEYS.find((k) => WARMUP_PRESETS[k].bar === s.warmupBar && JSON.stringify(WARMUP_PRESETS[k].ramp) === JSON.stringify(s.warmupRamp)) ?? ''}
+            onChange={(k) => {
+              const preset = WARMUP_PRESETS[k as keyof typeof WARMUP_PRESETS];
+              void patchSettings({ warmupRamp: [...preset.ramp], warmupBar: preset.bar });
+            }}
+            options={PRESET_KEYS.map((k) => ({ value: k, label: WARMUP_PRESETS[k].label }))}
+          />
+        </ChoiceRow>
       </Section>
 
       <Section title="TIMED HOLDS (AMTAP)">

@@ -13,6 +13,7 @@ import { useData } from '@/features/data';
 import { navigate } from '@/features/nav';
 import { picker } from '@/features/picker';
 import { createStore } from '@/features/store';
+import { ask } from '@/components/Dialog';
 import { MarginNote, Pad, Screen, Section, Segmented } from '@/components/ui';
 
 /** The import in progress. It outlives this page while the exercise library is open to change a match. */
@@ -132,8 +133,22 @@ export function ImportScreen() {
                   className="flex min-h-row min-w-0 flex-1 flex-col justify-center text-left"
                   aria-label={`${n}: ${target ?? 'create new'}`}
                   onClick={() => {
-                    picker.open(token);
-                    navigate({ name: 'exercises', picker: token });
+                    const choose = () => {
+                      picker.open(token);
+                      navigate({ name: 'exercises', picker: token });
+                    };
+                    if (target) return choose();
+                    ask(`Where does “${n}” belong?`, 'Match it to an exercise already in the Analog library, or set it up as your own with its own muscles and equipment.', [
+                      { text: 'Cancel', style: 'cancel' },
+                      { text: 'Pick from library', style: 'default', onPress: choose },
+                      {
+                        text: 'Make my own',
+                        onPress: () => {
+                          picker.open(token);
+                          navigate({ name: 'exerciseEdit', prefill: n, picker: token });
+                        },
+                      },
+                    ]);
                   }}
                 >
                   <span className="truncate">{n}</span>

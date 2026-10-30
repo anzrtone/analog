@@ -66,7 +66,7 @@ export async function addExerciseToWorkout(workoutId: string, exerciseId: string
 
 export async function addWarmups(workoutExerciseId: string, exerciseId: string, workingG: number): Promise<string> {
   const ex = await getExercise(db, exerciseId);
-  const plan = generateWarmups(workingG, ex?.equipment ?? 'other', await currentGym(db), settings().warmupRamp);
+  const plan = generateWarmups(workingG, ex?.equipment ?? 'other', await currentGym(db), settings().warmupRamp, settings().warmupBar);
   for (const [i, w] of plan.sets.entries()) await addSet(db, workoutExerciseId, { type: 'warmup', targetWeightG: w.weightG, targetReps: w.reps }, i);
   return plan.explanation;
 }

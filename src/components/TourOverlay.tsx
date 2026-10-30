@@ -13,6 +13,16 @@ import { cx, useBackClose } from './ui';
 const PAD = 8;
 const GAP = 12;
 const EDGE = 16;
+
+/** Height of the part of the screen the system bars leave free, for placing the note clear of the gesture/nav bar. */
+function freeHeight(): number {
+  const probe = document.createElement('div');
+  probe.style.cssText = 'position:fixed;visibility:hidden;pointer-events:none;padding-bottom:var(--sab)';
+  document.body.appendChild(probe);
+  const bottom = parseFloat(getComputedStyle(probe).paddingBottom) || 0;
+  probe.remove();
+  return window.innerHeight - bottom;
+}
 /** How long to wait for a step's target to render (screens load their data async) before skipping it. */
 const FIND_MS = 1500;
 
@@ -32,7 +42,7 @@ export function TourOverlay() {
 }
 
 function Spotlight({ v }: { v: TourView }) {
-  const [box, setBox] = useState<{ rect: DOMRect | null; vw: number; vh: number }>({ rect: null, vw: window.innerWidth, vh: window.innerHeight });
+  const [box, setBox] = useState<{ rect: DOMRect | null; vw: number; vh: number }>({ rect: null, vw: window.innerWidth, vh: freeHeight() });
   const [ready, setReady] = useState(false);
   const [noteH, setNoteH] = useState(0);
   useBackClose(true, endTour);
@@ -62,7 +72,7 @@ function Spotlight({ v }: { v: TourView }) {
         last = key;
         stable = 0;
       } else if (++stable === 2) {
-        setBox({ rect: r, vw: window.innerWidth, vh: window.innerHeight });
+        setBox({ rect: r, vw: window.innerWidth, vh: freeHeight() });
         setReady(true);
       }
       raf = requestAnimationFrame(track);

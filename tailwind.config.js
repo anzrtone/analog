@@ -81,8 +81,8 @@ export default {
       addUtilities({
         '.tabular': { fontVariantNumeric: 'tabular-nums' },
         '.no-scrollbar': { scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' } },
-        '.safe-pt': { paddingTop: 'env(safe-area-inset-top)' },
-        '.safe-pb': { paddingBottom: 'env(safe-area-inset-bottom)' },
+        '.safe-pt': { paddingTop: 'var(--sat)' },
+        '.safe-pb': { paddingBottom: 'var(--sab)' },
       });
     }),
   ],

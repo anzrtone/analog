@@ -26,7 +26,7 @@ import { MarginNote, Pad, RuledRow, Screen, Section, Segmented } from '@/compone
 const row = (title: string, to: Route, hint?: string) => ({ title, to, hint });
 
 const GROUPS = [
-  { title: 'TRAINING', rows: [row('Exercise library', { name: 'exercises' }, 'search, edit, hide, add your own'), row('Gyms and plates', { name: 'gyms' }, 'plate calculator, bars, dumbbells'), row('Bodyweight and measurements', { name: 'measurements' })] },
+  { title: 'TRAINING', rows: [row('Bodyweight and measurements', { name: 'measurements' })] },
   { title: 'YOUR DATA', rows: [row('Import from Strong or Hevy', { name: 'import' }, 'CSV'), row('Backup and export', { name: 'backup' }, 'JSON, CSV, restore')] },
   { title: 'APP', rows: [row('Settings', { name: 'settings' }), row('About Analog', { name: 'about' }), row('Dev log', { name: 'devlog' }, 'what changed in each release')] },
 ];

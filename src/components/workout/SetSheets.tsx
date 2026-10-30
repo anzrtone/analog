@@ -62,7 +62,7 @@ export function SetTypeSheet({ set, onClose }: { set: WorkoutSet; onClose: () =>
             );
           })}
           <Pad className="pt-3">
-            <button type="button" className="btn-secondary w-full" onClick={() => setEditing({ id: `${CUSTOM_PREFIX}${newId()}`, label: '', hint: '', letter: null, glyph: 'star', ring: 'ink', countsAsVolume: true, prEligible: true, timed: false })}>
+            <button type="button" className="btn-secondary w-full" onClick={() => setEditing(blankCustomSetType())}>
               New set type
             </button>
           </Pad>
@@ -74,8 +74,10 @@ export function SetTypeSheet({ set, onClose }: { set: WorkoutSet; onClose: () =>
 
 const RING_CHOICES: RingColor[] = ['ink', 'red', 'blue', 'yellow', 'green', 'white'];
 
+export const blankCustomSetType = (): CustomSetType => ({ id: `${CUSTOM_PREFIX}${newId()}`, label: '', hint: '', letter: null, glyph: 'star', ring: 'ink', countsAsVolume: true, prEligible: true, timed: false });
+
 /** Name, ring colour and emblem (a letter of your choice, or a drawn glyph), plus how the type counts. */
-function CustomSetTypeEditor({ initial, isNew, onDone }: { initial: CustomSetType; isNew: boolean; onDone: () => void }) {
+export function CustomSetTypeEditor({ initial, isNew, onDone }: { initial: CustomSetType; isNew: boolean; onDone: () => void }) {
   const list = useSettings().customSetTypes;
   const [draft, setDraft] = useState(initial);
   const patch = (x: Partial<CustomSetType>) => setDraft((d) => ({ ...d, ...x }));
@@ -106,6 +108,10 @@ function CustomSetTypeEditor({ initial, isNew, onDone }: { initial: CustomSetTyp
               <PlateRing color={c} state="done" size={24} filled />
             </button>
           ))}
+          <label className={cx('relative inline-flex h-touch w-touch items-center justify-center rounded-[8px]', draft.ring.startsWith('#') && 'ring-2 ring-ink')}>
+            <span className="h-6 w-6 rounded-full border border-rule" style={{ background: draft.ring.startsWith('#') ? draft.ring : 'conic-gradient(red, yellow, lime, cyan, blue, magenta, red)' }} />
+            <input type="color" aria-label="Pick any ring colour" value={draft.ring.startsWith('#') ? draft.ring : '#e8615e'} onChange={(e) => patch({ ring: e.target.value as RingColor })} className="absolute inset-0 h-full w-full cursor-pointer opacity-0" />
+          </label>
         </div>
       </div>
       <Field label="Letter in the ring (1–2 characters; blank uses a symbol)" value={draft.letter ?? ''} onChange={(e) => patch({ letter: e.target.value.slice(0, 2) || null })} autoCapitalize="none" maxLength={2} />

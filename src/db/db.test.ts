@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs';
 import { parseStrong } from '@/engine/import/csv';
 import { checkBackup, exportAll, restoreAll } from './backup';
-import { createExercise, getExercise, listExercises, searchExercises, setHidden, setStickyNote, syncSeed, updateExercise, type SeedExercise } from './exercises';
+import { createExercise, getExercise, listExercises, searchExercises, sessionCounts, setHidden, setStickyNote, syncSeed, updateExercise, type SeedExercise } from './exercises';
 import { commitImport } from './importer';
 import { activeRun, ensureDefaultGym, getProgram, loadLandmarks, recordPrs, saveLandmark, saveProgram, startRun, saveRunState } from './repos';
 import { loadSettings, saveSetting } from './settings';
@@ -226,6 +226,9 @@ describe('import and backup', () => {
     expect(first).toEqual({ workouts: 2, sets: 7, skippedDuplicates: 0, createdExercises: 2 });
     expect((await commitImport(db, r, { 'Bench Press (Barbell)': { exerciseId: 'Barbell_Bench_Press' } }, null)).skippedDuplicates).toBe(2);
     expect((await getExercise(db, 'Barbell_Bench_Press'))!.aliases).toContain('Bench Press (Barbell)');
+    // Imported history counts toward how often an exercise is used (the library orders by it).
+    const counts = await sessionCounts(db);
+    expect(counts.get('Barbell_Bench_Press')).toBeGreaterThan(0);
   });
   it('round-trips a full JSON backup', async () => {
     const db = testDb();

@@ -33,10 +33,16 @@ export interface AppSettings {
   backupReminderDays: number;
   lastBackupAt: number | null;
   warmupRamp: WarmupStep[];
+  /** Open barbell warm-ups with the empty bar. */
+  warmupBar: boolean;
   maxJumpPct: number;
   /** Version of the bundled exercise library last synced into the database. */
   seedVersion: number;
   customSetTypes: CustomSetType[];
+  /** One-time hints the user closed with their X; they never come back. */
+  hintsDismissed: string[];
+  /** Body measurements the user added beyond the built-in five; logged in length like the tape ones. */
+  customMeasurements: { id: string; label: string }[];
   /** The welcome questions were answered or skipped. Bump ONBOARDING_VERSION to show a newer flow once. */
   onboarded: boolean;
   onboardingVersion: number;
@@ -101,9 +107,12 @@ export const DEFAULT_SETTINGS: AppSettings = {
   backupReminderDays: 14,
   lastBackupAt: null,
   warmupRamp: DEFAULT_RAMP,
+  warmupBar: false,
   maxJumpPct: 0.1,
   seedVersion: 0,
   customSetTypes: [],
+  hintsDismissed: [],
+  customMeasurements: [],
   onboarded: false,
   onboardingVersion: 0,
   profile: { name: '' },

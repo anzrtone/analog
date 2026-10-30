@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { addMeasurement, deleteMeasurement, deletePhoto, listMeasurements, listPhotos, type MeasurementRow } from '@/db/repos';
 import { db, newId, type PhotoRow } from '@/db/schema';
-import { useSettings } from '@/db/settings';
+import { patchSettings, useSettings } from '@/db/settings';
 import { formatWeight, parseWeightInput } from '@/engine/math/units';
 import { useData } from '@/features/data';
 import { IconButton, MarginNote, Pad, RuledRow, Screen, Section, Segmented } from '@/components/ui';
@@ -71,8 +71,29 @@ function Photo({ row }: { row: PhotoRow }) {
 
 /** Bodyweight in grams; tape measurements in mm. Photos stay in the app on this device and are never uploaded. */
 export function MeasurementsScreen() {
-  const unit = useSettings().unit;
+  const { unit, customMeasurements } = useSettings();
   const [kind, setKind] = useState('bodyweight');
+  const [adding, setAdding] = useState(false);
+  const [newName, setNewName] = useState('');
+  const kinds = [...KINDS, ...customMeasurements.map((m) => ({ value: m.id, label: m.label }))];
+  const isCustom = customMeasurements.some((m) => m.id === kind);
+  const addKind = async () => {
+    const label = newName.trim().slice(0, 24);
+    if (!label) return;
+    const existing = kinds.find((k) => k.label.toLowerCase() === label.toLowerCase());
+    if (existing) setKind(existing.value);
+    else {
+      const id = `custom:${newId()}`;
+      await patchSettings({ customMeasurements: [...customMeasurements, { id, label }] });
+      setKind(id);
+    }
+    setNewName('');
+    setAdding(false);
+  };
+  const removeKind = async () => {
+    await patchSettings({ customMeasurements: customMeasurements.filter((m) => m.id !== kind) });
+    setKind('bodyweight');
+  };
   const [value, setValue] = useState('');
   const [error, setError] = useState<string | null>(null);
   const rows = useData((d) => listMeasurements(d, kind), [kind], [] as MeasurementRow[]);
@@ -95,7 +116,29 @@ export function MeasurementsScreen() {
   return (
     <Screen title="Body" backButton meta="STORED ON THIS DEVICE ONLY">
       <Pad className="flex flex-col gap-2">
-        <Segmented label="Measurement" value={kind} onChange={setKind} options={KINDS} />
+        <div className="flex items-center gap-2 overflow-x-auto">
+          <Segmented label="Measurement" value={kind} onChange={setKind} options={kinds} />
+          <button type="button" className="btn-ghost btn-compact shrink-0" onClick={() => setAdding((a) => !a)}>
+            New
+          </button>
+        </div>
+        {adding ? (
+          <form
+            className="flex items-end gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void addKind();
+            }}
+          >
+            <label className="flex flex-1 flex-col gap-1">
+              <span className="t-label text-ink2">Measurement name</span>
+              <input className="field" value={newName} onChange={(e) => setNewName(e.target.value)} maxLength={24} autoFocus />
+            </label>
+            <button type="submit" className="btn-primary">
+              Save
+            </button>
+          </form>
+        ) : null}
         <form
           className="flex items-end gap-2"
           onSubmit={(e) => {
@@ -111,6 +154,11 @@ export function MeasurementsScreen() {
             Add
           </button>
         </form>
+        {isCustom ? (
+          <button type="button" className="btn-ghost text-red-text" onClick={() => void removeKind()}>
+            Remove this measurement from the tabs
+          </button>
+        ) : null}
       </Pad>
       <Section title="LOG">
         {rows

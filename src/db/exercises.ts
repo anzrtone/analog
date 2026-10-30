@@ -52,6 +52,17 @@ export async function listExercises(d: AnalogDB, opts: { includeHidden?: boolean
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
+/** How many workouts each exercise has been logged in (ticked sets only), for ordering the library by use. */
+export async function sessionCounts(d: AnalogDB): Promise<Map<string, number>> {
+  const seen = new Map<string, Set<string>>();
+  await d.workoutSets.where('completedAt').above(0).each((s) => {
+    let w = seen.get(s.exerciseId);
+    if (!w) seen.set(s.exerciseId, (w = new Set()));
+    w.add(s.workoutId);
+  });
+  return new Map([...seen].map(([id, w]) => [id, w.size]));
+}
+
 export async function getExercise(d: AnalogDB, id: string): Promise<Exercise | null> {
   const row = await d.exercises.get(id);
   if (!row) return null;

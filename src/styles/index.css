@@ -63,6 +63,14 @@
   color-scheme: light;
 }
 
+/* System-bar insets. Capacitor injects --safe-area-inset-* on Android; env() covers desktop browsers and newer WebViews. Take the larger. */
+:root {
+  --sat: max(env(safe-area-inset-top, 0px), var(--safe-area-inset-top, 0px));
+  --sab: max(env(safe-area-inset-bottom, 0px), var(--safe-area-inset-bottom, 0px));
+  --sal: max(env(safe-area-inset-left, 0px), var(--safe-area-inset-left, 0px));
+  --sar: max(env(safe-area-inset-right, 0px), var(--safe-area-inset-right, 0px));
+}
+
 html,
 body,
 #root {

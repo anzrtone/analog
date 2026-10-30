@@ -12,7 +12,8 @@
 // `erased` stays below AA on purpose: it is only for disabled controls, which WCAG exempts.
 
 export type PlateName = 'red' | 'blue' | 'yellow' | 'green' | 'white';
-export type RingColor = PlateName | 'ink';
+/** A named plate colour, the plain pen, or any user-picked colour as `#rrggbb`. */
+export type RingColor = PlateName | 'ink' | `#${string}`;
 
 export interface Plate {
   ring: string;
@@ -75,11 +76,14 @@ export type ThemeName = keyof typeof palettes;
 
 /** Ring stroke and letter colour for a ring colour name ("ink" = the plain pen colour). */
 export function ringColors(p: Palette, c: RingColor): Plate {
-  return c === 'ink' ? { ring: p.ink, text: p.ink } : p.plate[c];
+  if (c === 'ink') return { ring: p.ink, text: p.ink };
+  if (c.startsWith('#')) return { ring: c, text: c };
+  return p.plate[c as PlateName];
 }
 
 /** CSS variable for a ring colour, for SVG drawn in the app (follows the theme without a re-render). */
 export function ringVar(c: RingColor, part: 'ring' | 'text' = 'ring'): string {
+  if (c.startsWith('#')) return c;
   return c === 'ink' ? 'rgb(var(--ink))' : `rgb(var(--${c}-${part}))`;
 }
 

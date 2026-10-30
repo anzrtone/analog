@@ -5,6 +5,34 @@ For the plain state of each part, see [STATUS.md](STATUS.md); for every judgemen
 
 ---
 
+## 2026-10-30 · 0.3.0: nothing under the buttons
+
+**Layout on Android (the audit).** The app is edge-to-edge, and several things ignored the system bars:
+
+- `Sheet` set `pb-2` and `safe-pb` together, both `padding-bottom`, so the inset lost and "New set type" and the hold timer sat under the nav buttons.
+- The page's bottom padding was a fixed 76 px, shorter than the tab bar plus the nav inset, so the last row ("Open link") hid behind it.
+- `Sheet` was `fixed` inside the page, so a transformed or scrolling ancestor could place it; on desktop the "why this target" sheet opened far below the window.
+
+The fix: `--sat`/`--sab`/`--sal`/`--sar` in `index.css` take the larger of `env(safe-area-inset-*)` and Capacitor's injected `--safe-area-inset-*`; `Sheet` is portalled to `<body>`, pads by the real inset and caps its height with `dvh`; the sticky footer, dialogs, welcome card and tour note do the same. Not checked on a device.
+
+**Navigation.** My Gyms and Exercises join the tab bar (seven tabs; 11 px labels fit at 360 px). The library opened as a picker carries params, so `isTab` treats it as a pushed page and keeps the tab bar hidden there.
+
+**Phone plate calculator.** `PlateLoad` (the bar diagram and per-side line from the desktop margin) now sits under each barbell, EZ-bar, smith or dip-belt exercise for the next unticked set.
+
+**Charts.** `LineChart` is scrubbable: hover or drag shows the nearest point, its date, and for estimated max the top set behind it. Horizontal drags only, so the page still scrolls.
+
+**Warm-ups.** The default ramp is two sets (50% × 5, 75% × 2) and the empty-bar set is off. Light, Standard and Thorough (the old ramp with the bar) live in Settings; `warmupBar` is a new setting.
+
+**Import.** Tapping a "new custom exercise" row asks whether to pick from the library or make your own; the form returns the new exercise to that row. Dialogs with three or more buttons stack.
+
+**Library order.** Alphabetical, then by how many workouts an exercise was ticked in (`sessionCounts`), unless a search is typed.
+
+**Also in this release:** a rest hint with an X (`hintsDismissed` setting), custom ring colours for set types and set-type creation in the program builder, and custom body measurements.
+
+Typecheck, lint and Vitest pass. The sheet and tab-bar changes were checked at 360 px in the browser, not on a phone.
+
+---
+
 ## 2026-10-30 · 0.2.0: the rebuild
 
 Analog 0.1.0 was React Native and Expo: a 9.6 MB Hermes bundle, SQLite through three different drivers (native, sql.js in the browser, a file under Electron), and an Android build that needed EAS or a full local SDK just to try. 0.2.0 is the same logbook rebuilt on the stack Promodoro already ships with: **Vite, React 18, TypeScript, Tailwind, Dexie (IndexedDB), Capacitor 8 for Android and Tauri 2 for Windows**. One web app, two thin native shells.

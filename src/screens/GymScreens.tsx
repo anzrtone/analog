@@ -22,9 +22,9 @@ export function GymsScreen() {
   const profile = toGymProfile(gym);
   const tg = parseWeightInput(target, s.unit) ?? 0;
   const load = loadBarbell(tg, profile.barG, profile.plates, 'nearest', s.unit);
-  const warm = generateWarmups(load.totalG, 'barbell', profile, s.warmupRamp);
+  const warm = generateWarmups(load.totalG, 'barbell', profile, s.warmupRamp, s.warmupBar);
   return (
-    <Screen title="Gyms and plates" backButton meta={`${gym.name.toUpperCase()} · ${profile.unit}`}>
+    <Screen title="Gyms and plates" meta={`${gym.name.toUpperCase()} · ${profile.unit}`}>
       <Section title="PLATE CALCULATOR">
         <Pad className="flex flex-col gap-2">
           <Field label={`Target (${s.unit})`} value={target} onChange={(e) => setTarget(e.target.value)} inputMode="decimal" />

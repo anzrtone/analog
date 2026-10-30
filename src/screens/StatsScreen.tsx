@@ -163,7 +163,7 @@ export function StatsScreen() {
 
       {bw.length > 1 ? (
         <Section title="BODYWEIGHT">
-          <LineChart points={bw.map((m) => ({ x: m.date, y: m.value }))} format={(g) => formatWeight(g, unit)} />
+          <LineChart points={bw.map((m) => ({ x: m.date, y: m.value }))} format={(g) => `${formatWeight(g, unit)} ${unit}`} />
         </Section>
       ) : null}
 

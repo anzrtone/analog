@@ -1,4 +1,4 @@
-# Status (2026-10-30, 0.2.0)
+# Status (2026-10-30, 0.3.0)
 
 Honest state of the rebuild. "Verified" means a test or a check actually ran on this machine.
 

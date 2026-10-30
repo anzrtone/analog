@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 The Analog contributors
 import { memo, useEffect, useRef } from 'react';
-import { ChartLine, History, ListChecks, Menu, NotebookPen } from 'lucide-react';
+import { ChartLine, Dumbbell, History, ListChecks, Menu, NotebookPen, Weight } from 'lucide-react';
 import { useSettings } from '@/db/settings';
 import { isTab, navigate, useNav, type Route, type Tab } from '@/features/nav';
 import { useWide } from '@/features/responsive';
@@ -37,6 +37,8 @@ const TABS: Array<{ id: Tab; label: string; icon: typeof NotebookPen; tour?: str
   { id: 'history', label: 'History', icon: History, tour: 'nav-history' },
   { id: 'programs', label: 'Programs', icon: ListChecks, tour: 'nav-programs' },
   { id: 'stats', label: 'Stats', icon: ChartLine, tour: 'nav-stats' },
+  { id: 'exercises', label: 'Exercises', icon: Dumbbell },
+  { id: 'gyms', label: 'My Gyms', icon: Weight },
   { id: 'more', label: 'More', icon: Menu },
 ];
 
@@ -56,16 +58,16 @@ export function App() {
     <div className="flex h-full">
       {wide ? <Sidebar /> : null}
 
-      <main ref={mainRef} className={cx('relative flex-1 overflow-y-auto overflow-x-hidden safe-pt', tabs && 'pb-[76px]')}>
+      <main ref={mainRef} className={cx('relative flex-1 overflow-y-auto overflow-x-hidden safe-pt', tabs && 'pb-[calc(76px+var(--sab))]')}>
         <ScreenStack stack={stack} scroller={mainRef} render={renderScreen} />
       </main>
 
       {!tabs ? null : (
         <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-rule bg-paper safe-pb" aria-label="Pages">
           {TABS.map((t) => (
-            <button key={t.id} type="button" data-tour={t.tour} aria-current={tab === t.id ? 'page' : undefined} onClick={() => navigate({ name: t.id })} className={cx('flex min-h-[62px] flex-1 flex-col items-center justify-center gap-1 text-[12px] font-medium leading-4', tab === t.id ? 'text-ink' : 'text-pencil')}>
-              <t.icon size={22} strokeWidth={1.75} />
-              {t.label}
+            <button key={t.id} type="button" data-tour={t.tour} aria-current={tab === t.id ? 'page' : undefined} onClick={() => navigate({ name: t.id })} className={cx('flex min-h-[62px] min-w-0 flex-1 flex-col items-center justify-center gap-1 px-0 text-[11px] font-medium leading-4 tracking-[-0.025em]', tab === t.id ? 'text-ink' : 'text-pencil')}>
+              <t.icon size={21} strokeWidth={1.75} />
+              <span className="max-w-full truncate">{t.label}</span>
             </button>
           ))}
         </nav>
@@ -112,7 +114,7 @@ const CurrentScreen = memo(function CurrentScreen({ route }: { route: Route }) {
     case 'exercise':
       return <ExerciseDetailScreen key={route.id} id={route.id} />;
     case 'exerciseEdit':
-      return <ExerciseEditScreen key={route.id ?? 'new'} id={route.id} />;
+      return <ExerciseEditScreen key={route.id ?? `new:${route.prefill ?? ''}`} id={route.id} prefill={route.prefill} picker={route.picker} />;
     case 'gyms':
       return <GymsScreen />;
     case 'gym':

@@ -3,7 +3,7 @@
 import { chartPercent, estimate1rm, loadFor } from './e1rm';
 import { DEFAULT_KG_GYM, DEFAULT_LB_GYM, loadBarbell, loadDipBelt, roundToGym } from './plates';
 import { formatClock, formatDuration, formatSet, formatWeight, fromGrams, parseWeightInput, toGrams } from './units';
-import { generateWarmups } from './warmup';
+import { generateWarmups, WARMUP_PRESETS } from './warmup';
 
 describe('units', () => {
   it('round-trips kg and lb through grams', () => {
@@ -99,8 +99,15 @@ describe('plates', () => {
 });
 
 describe('warm-ups', () => {
-  it('ramps 40/60/80% from the empty bar', () => {
+  it('defaults to two sets: 50% and 75%', () => {
     const p = generateWarmups(100000, 'barbell', DEFAULT_KG_GYM);
+    expect(p.sets).toEqual([
+      { weightG: 50000, reps: 5 },
+      { weightG: 75000, reps: 2 },
+    ]);
+  });
+  it('the thorough preset ramps 40/60/80% from the empty bar', () => {
+    const p = generateWarmups(100000, 'barbell', DEFAULT_KG_GYM, [...WARMUP_PRESETS.thorough.ramp], true);
     expect(p.sets).toEqual([
       { weightG: 20000, reps: 10 },
       { weightG: 40000, reps: 8 },
@@ -110,12 +117,12 @@ describe('warm-ups', () => {
     expect(p.explanation).toBe('40%/60%/80% of 100 kg, rounded to your plates.');
   });
   it('drops steps that round to the same weight or below the bar', () => {
-    const p = generateWarmups(30000, 'barbell', DEFAULT_KG_GYM);
+    const p = generateWarmups(30000, 'barbell', DEFAULT_KG_GYM, [...WARMUP_PRESETS.thorough.ramp], true);
     // 40% and 60% are under the bar, so the bar stands in once; 80% (24 kg) rounds to 25.
     expect(p.sets.map((s) => s.weightG)).toEqual([20000, 25000]);
   });
   it('uses the dumbbell rack', () => {
-    const p = generateWarmups(30000, 'dumbbell', DEFAULT_KG_GYM);
+    const p = generateWarmups(30000, 'dumbbell', DEFAULT_KG_GYM, [...WARMUP_PRESETS.thorough.ramp]);
     expect(p.sets.map((s) => s.weightG)).toEqual([12500, 17500, 25000]);
   });
   it('explains an empty plan', () => {

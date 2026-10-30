@@ -24,6 +24,25 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '0.3.0',
+    date: '2026-10-30',
+    summary: 'Nothing hides behind the Android buttons any more, the bottom bar gets Exercises and My Gyms, and the logbook learns what you use most.',
+    notes: [
+      { tag: 'fixed', text: 'Sheets, timers and buttons no longer slide under the Android back, home and recents buttons, and the last row of a page is no longer stuck behind the tab bar.' },
+      { tag: 'fixed', text: 'The “why this target” note opens on screen on the desktop app instead of far below the window.' },
+      { tag: 'new', text: 'Exercises and My Gyms are now tabs on the bottom bar, so the library and your plates are one tap away.' },
+      { tag: 'new', text: 'The plate calculator now shows on your phone: the bar with its plates sits under each barbell lift, for the next set to do.' },
+      { tag: 'new', text: 'Run a finger or the mouse across an estimated-max or bodyweight chart to read the logged top set behind each point.' },
+      { tag: 'new', text: 'Importing: tap a new exercise to pick one from the library or make your own, with its muscles and equipment, right there.' },
+      { tag: 'new', text: 'Pick any colour for a custom set type’s ring, and create set types from inside the program builder.' },
+      { tag: 'new', text: 'Add your own body measurements next to the built-in ones.' },
+      { tag: 'better', text: 'Warm-ups are lighter out of the box, two sets instead of four. Settings has Light, Standard and Thorough if you want more or fewer.' },
+      { tag: 'better', text: 'The exercise library starts alphabetical, then moves what you log most to the top.' },
+      { tag: 'better', text: 'The rest hint on the desktop margin has an X that closes it for good.' },
+      { tag: 'better', text: 'Pop-ups with three choices stack neatly instead of wrapping.' },
+    ],
+  },
+  {
     version: '0.2.0',
     date: '2026-10-30',
     summary: 'The same logbook, rebuilt from the ground up. It opens faster, weighs less, and Android gets a real app with the rest timer on your lock screen.',

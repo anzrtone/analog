@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { NotebookPen } from 'lucide-react';
 import { createExercise, getExercise, resetExercise, setHidden, updateExercise, type Exercise, type ExerciseInput } from '@/db/exercises';
+import { picker } from '@/features/picker';
 import { prsForExercise, type PrRow } from '@/db/repos';
 import { db } from '@/db/schema';
 import { useSettings } from '@/db/settings';
@@ -55,7 +56,14 @@ export function ExerciseDetailScreen({ id }: { id: string }) {
 
       {trend.length > 1 ? (
         <Section title="ESTIMATED MAX">
-          <LineChart points={trend.map((t) => ({ x: t.date, y: t.value }))} format={(g) => formatWeight(Math.round(g / 500) * 500, unit)} />
+          <LineChart
+            points={trend.map((t) => {
+              const set = sets.find((x) => x.id === t.setId);
+              const rir = set?.rir != null ? ` · ${set.rir} RIR` : '';
+              return { x: t.date, y: t.value, detail: set?.weightG && set.reps ? `Top set: ${formatWeight(set.weightG, unit)} ${unit} × ${set.reps}${rir}` : undefined };
+            })}
+            format={(g) => formatWeight(Math.round(g / 500) * 500, unit)}
+          />
           {best ? (
             <Pad>
               <p className="t-num-m text-ink2">
@@ -168,15 +176,15 @@ function MuscleChip({ m, state, onClick }: { m: Muscle; state: 'primary' | 'seco
   );
 }
 
-export function ExerciseEditScreen({ id }: { id?: string }) {
+export function ExerciseEditScreen({ id, prefill, picker: pickerToken }: { id?: string; prefill?: string; picker?: string }) {
   const ex = useData((d) => (id ? getExercise(d, id) : Promise.resolve(null)), [id], undefined as Exercise | null | undefined);
   if (ex === undefined) return <div className="min-h-full" />;
-  return <EditExercise key={id ?? 'new'} id={id} ex={ex} />;
+  return <EditExercise key={id ?? 'new'} id={id} ex={ex} prefill={prefill} pickerToken={pickerToken} />;
 }
 
-function EditExercise({ id, ex }: { id?: string; ex: Exercise | null }) {
+function EditExercise({ id, ex, prefill, pickerToken }: { id?: string; ex: Exercise | null; prefill?: string; pickerToken?: string }) {
   const unit = useSettings().unit;
-  const [name, setName] = useState(ex?.name ?? '');
+  const [name, setName] = useState(ex?.name ?? prefill ?? '');
   const [primary, setPrimary] = useState<Muscle[]>(ex?.primary ?? []);
   const [secondary, setSecondary] = useState<Muscle[]>(ex?.secondary ?? []);
   const [credit, setCredit] = useState(String(ex?.secondaryCredit ?? 0.5));
@@ -218,7 +226,10 @@ function EditExercise({ id, ex }: { id?: string; ex: Exercise | null }) {
       notes: notes.trim() || null,
     };
     if (id) await updateExercise(db, id, input);
-    else await createExercise(db, input);
+    else {
+      const created = await createExercise(db, input);
+      if (pickerToken) picker.pick(pickerToken, created);
+    }
     back();
   };
 

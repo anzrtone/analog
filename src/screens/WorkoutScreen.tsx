@@ -27,7 +27,7 @@ import { NumberSheet } from '@/components/NumberSheet';
 import { RestTimer } from '@/components/RestTimer';
 import { SetColumns, SetRow, type SetField } from '@/components/SetRow';
 import { ChoiceRow, cx, Field, IconButton, MarginNote, Pad, RuledRow, Screen, Segmented, Sheet } from '@/components/ui';
-import { WorkoutMargin, WorkoutOutline } from '@/components/workout/DesktopPanels';
+import { PlateLoad, WorkoutMargin, WorkoutOutline } from '@/components/workout/DesktopPanels';
 import { SetDetailSheet, SetTypeSheet, StopwatchSheet } from '@/components/workout/SetSheets';
 import { LongWorkoutSheet, WorkoutTimeSheet } from '@/components/workout/TimeSheets';
 
@@ -353,6 +353,14 @@ export function WorkoutScreen({ id }: { id: string }) {
                 <Ellipsis size={20} strokeWidth={1.75} />
               </IconButton>
             </div>
+            {!wide && ex && !e.skipped ? (() => {
+              const next = e.sets.find((x) => x.completedAt == null);
+              return next ? (
+                <div className="pl-margin pr-margin pt-1">
+                  <PlateLoad exercise={ex} set={next} scale={0.55} compact />
+                </div>
+              ) : null;
+            })() : null}
             {wide && e.sets.length ? <SetColumns effort={s.effort} timed={timedCols} /> : null}
             <div className={cx(label && 'ml-1 border-l-2 border-blue-ring')}>
               {e.sets.map((set, si) => {

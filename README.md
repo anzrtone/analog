@@ -9,7 +9,7 @@
 - A rest timer on the lock screen with −15 / +15 / Skip, and a bell that rings on time with the screen off.
 - Share cards, program links and QR codes. Strong and Hevy import. JSON and CSV export. Automatic daily backups.
 
-The product spec and design language live in [docs/SPEC.md](docs/SPEC.md) and [docs/BRAND.md](docs/BRAND.md). They are the source of truth. What changed in 0.2.0 and why: [docs/DEVLOG.md](docs/DEVLOG.md) and [docs/DECISIONS.md](docs/DECISIONS.md).
+The product spec and design language live in [docs/SPEC.md](docs/SPEC.md) and [docs/BRAND.md](docs/BRAND.md). They are the source of truth. What changed in 0.3.0 and why: [docs/DEVLOG.md](docs/DEVLOG.md) and [docs/DECISIONS.md](docs/DECISIONS.md).
 
 ## Status
 

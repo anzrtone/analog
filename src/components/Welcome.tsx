@@ -123,7 +123,7 @@ function Wizard({ mode }: { mode: OnboardingMode }) {
   };
 
   return (
-    <div className={cx('fixed inset-0 z-[55] flex items-center justify-center p-4', mode === 'full' ? 'bg-paper' : 'bg-scrim/55')}>
+    <div className={cx('fixed inset-0 z-[55] flex items-center justify-center p-4 pb-[calc(var(--sab)+16px)] pt-[calc(var(--sat)+16px)]', mode === 'full' ? 'bg-paper' : 'bg-scrim/55')}>
       <div role="dialog" aria-modal="true" aria-label="Welcome to Analog" className="flex max-h-full w-full max-w-[520px] animate-card-in flex-col overflow-hidden rounded-sheet border border-rule bg-raised">
         <div className="flex justify-end px-2 pt-2">
           <button type="button" className="btn-ghost btn-compact" onClick={dismiss}>
