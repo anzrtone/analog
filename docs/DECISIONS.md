@@ -75,3 +75,17 @@ Choices made while rebuilding Analog 0.2.0 on the Promodoro stack, with the reas
 - **Version and signing come from the environment**, as in Promodoro: `ANALOG_VERSION_NAME` / `ANALOG_VERSION_CODE`, and `android/keystore.properties` or `ANALOG_KEYSTORE`, `ANALOG_KEYSTORE_PASSWORD`, `ANALOG_KEY_ALIAS`, `ANALOG_KEY_PASSWORD`. Without them, a release build is unsigned and CI falls back to a debug APK.
 - **Icons and splash are drawn from `assets/*.png` by `scripts/android-res.ps1`** (Windows' System.Drawing, no new dependency): the 0.1.0 adaptive foreground and Android 13 themed monochrome on Paper, the legacy and round icons, and the ring on Carbon for the splash. Android 12+ uses the system splash with the same colours.
 - **Not built here**: a JDK is installed but no Android SDK, so `./gradlew assembleDebug` was not run and the Java has not been compiled. `npx cap sync android` succeeds. CI builds the APK.
+
+## Desktop
+
+- **The Tauri shell is Promodoro's without the tray, mini mode, global shortcut and alarm scheduler.** A logbook doesn't run in the background the way a focus timer does; closing the window quits. Kept: single instance (two windows would race on IndexedDB), the notification, dialog and opener plugins, and atomic file writes.
+- **The window never throttles its timers** (`backgroundThrottling: disabled` and Promodoro's browser flags), so the page's own timeout for the end of rest is on time behind other windows, and a desktop notification says "Rest over" when Analog isn't focused.
+- **Automatic backups go to `Documents\Analog Backups`** through four Rust commands (`backup_dir`, `backup_write`, `backup_list`, `backup_read`) that only ever touch `analog-backup-*.json` names in that folder. Exports use the Save dialog and `write_text_file` / `write_base64_file`, as in Promodoro.
+- **CSP:** `connect-src 'self' ipc: http://ipc.localhost https://api.github.com` and nothing else. The opener may open only `https://github.com/*` and `https://analog-app.github.io/*`.
+- **Window:** 1440 × 900 like 0.1.0's Electron window, minimum 380 × 560, Carbon background so there is no white flash before the first paint.
+- **The installers were not built here** (`tauri build --no-bundle` only): the bundler downloads NSIS and WiX into the user profile on drive C:, which is nearly full. CI builds them.
+
+## CI and docs
+
+- **`.github/workflows/build.yml` is Promodoro's**, renamed (`ANALOG_*` variables, `Analog-*.apk`, `Analog-portable.exe`, artifacts `analog-windows` / `analog-android`), with `npm run lint` added to the check job and without Promodoro's official-build variable (Analog has no server). It runs on `main`, pull requests, `v*` tags and by hand; tags publish a release with `SHA256SUMS.txt`.
+- **DEVLOG.md keeps 0.1.0's entries** under the new 0.2.0 one, so the project's history stays in one place.
