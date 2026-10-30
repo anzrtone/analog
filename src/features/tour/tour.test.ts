@@ -171,3 +171,34 @@ describe('guided tour', () => {
     await userDb.workouts.clear();
   });
 });
+
+describe('sync tour', () => {
+  const sync = TOURS.sync!.steps;
+
+  test('has six steps, all on the Sync page, and only the always-present switch is a target', () => {
+    expect(sync).toHaveLength(6);
+    expect(sync.every((x) => x.screen === 'sync')).toBe(true);
+    expect(sync.filter((x) => x.target).map((x) => x.target)).toEqual(['sync-method']);
+    expect(sync.every((x) => !x.make)).toBe(true);
+  });
+
+  test('runs start to finish without a sample database, and ends where it began', async () => {
+    const log = fakeHost();
+    await startTour('sync');
+    expect(view()).toMatchObject({ tourId: 'sync', index: 0, count: 6, target: null });
+    expect(log.screens).toEqual(['sync']);
+    expect(log.sample).toEqual([]);
+    for (let i = 0; i < 5; i++) nextStep();
+    expect(view().last).toBe(true);
+    nextStep();
+    expect(tourSnapshot()).toBeNull();
+    expect(log.ended).toEqual(['sync']);
+  });
+
+  test('says how conflicts behave, in plain words', () => {
+    const text = sync.map((x) => x.text).join(' ');
+    expect(text).toMatch(/newer edit wins/);
+    expect(text).toMatch(/never doubles/);
+    expect(text).toMatch(/even the server can’t read it/);
+  });
+});

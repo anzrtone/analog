@@ -9,7 +9,7 @@
 - A rest timer on the lock screen with −15 / +15 / Skip, and a bell that rings on time with the screen off.
 - Share cards, program links and QR codes. Strong and Hevy import. JSON and CSV export. Automatic daily backups.
 
-The product spec and design language live in [docs/SPEC.md](docs/SPEC.md) and [docs/BRAND.md](docs/BRAND.md). They are the source of truth. What changed in 0.4.0 and why: [docs/DEVLOG.md](docs/DEVLOG.md) and [docs/DECISIONS.md](docs/DECISIONS.md).
+The product spec and design language live in [docs/SPEC.md](docs/SPEC.md) and [docs/BRAND.md](docs/BRAND.md). They are the source of truth. What changed in 0.5.0 and why: [docs/DEVLOG.md](docs/DEVLOG.md) and [docs/DECISIONS.md](docs/DECISIONS.md).
 
 ## Status
 
@@ -103,6 +103,9 @@ Everything is stored on your device, in the app's own IndexedDB, and Analog work
 - **Release check.** Asks GitHub's public release list for the newest version, when you press **Check** on the dev log or turn on the daily check. No cookies, no referrer, nothing about you.
 - **Device sync** (More, then Sync between devices). Merges your own devices through a pairing code, a cloud folder you already use, or a file you carry. With a pairing code the data is encrypted on your device before it is sent, and the relay stores only ciphertext it cannot read; the code never leaves your devices. Cloud-folder and file sync involve no Analog server at all. See `worker/` for the relay's source.
 - **Welcome answers.** The questions you answer on first run stay on the device. Sharing them anonymously is a separate switch, off by default, and turning it off asks the server to delete them.
+- **Install count.** Another separate switch, off by default: it sends one record per install, a random id, your platform, the version and the day, so the developer knows roughly how many people use Analog. Nothing about you or your training. Turning it off deletes the record.
+
+The Worker keeps no IP addresses and no user agents. Only the developer can read the totals and the shared answers (`npm run stats`), and the answers are returned without the random id.
 
 Progress photos stay out of backups and out of sync.
 

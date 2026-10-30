@@ -2,12 +2,12 @@
 // Copyright (c) 2026 The Analog contributors
 import { SupportButton } from '@/components/SupportButton';
 import { useEffect, useState } from 'react';
-import { SURVEY_URL } from '@/config';
+import { INSTALL_URL, SURVEY_URL } from '@/config';
 import { patchSettings, useSettings, type AppSettings } from '@/db/settings';
 import { formatClock } from '@/engine/math/units';
 import { WARMUP_PRESETS } from '@/engine/math/warmup';
 import { navigate } from '@/features/nav';
-import { openOnboarding, setSharing } from '@/features/onboarding/store';
+import { openOnboarding, setCounting, setSharing } from '@/features/onboarding/store';
 import { startTour } from '@/features/tour/store';
 import { platform } from '@/platform';
 import { palettes, type Palette, type ThemeName } from '@/theme/tokens';
@@ -100,6 +100,7 @@ export function SettingsScreen() {
           <MarginNote>Analog never collects it. It only travels between your own devices if you turn on sync.</MarginNote>
         </Pad>
         {SURVEY_URL && s.survey ? <ToggleRow label="Share my welcome answers anonymously" hint="never your name or your training data; off deletes them" checked={s.shareSurvey} onChange={(v) => void setSharing(v)} /> : null}
+        {INSTALL_URL ? <ToggleRow label="Count this install anonymously" hint="once, with a random id, your platform and the version; off deletes it" checked={s.shareInstall} onChange={(v) => void setCounting(v)} /> : null}
         <Pad className="flex flex-wrap gap-2 pt-3">
           <button type="button" className="btn-secondary" onClick={() => openOnboarding('survey')}>
             Retake the welcome questions

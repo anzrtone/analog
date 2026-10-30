@@ -2,7 +2,7 @@
   "name": "analog",
   "private": true,
   "license": "AGPL-3.0-only",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Analog: the training log you own. Free, open-source, private lifting logbook for Android and Windows.",
   "type": "module",
   "scripts": {
@@ -12,6 +12,7 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "stats": "node scripts/stats.mjs",
     "desktop:dev": "tauri dev",
     "desktop:build": "tauri build",
     "android:sync": "npm run build && cap sync android",

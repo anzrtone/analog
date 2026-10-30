@@ -5,7 +5,7 @@
 // and one or two sentences. Text can use {name}, {program} and {day}; {program} and {day} also work in targets.
 
 /** `workout` is the sample workout in progress. */
-export type TourScreen = 'today' | 'workout' | 'history' | 'programs' | 'stats' | 'more';
+export type TourScreen = 'today' | 'workout' | 'history' | 'programs' | 'stats' | 'more' | 'sync';
 
 /** Interactive steps: the note shows a name field and makes the thing. A day is made inside the program. */
 export type MakeKind = 'program' | 'day';
@@ -64,6 +64,23 @@ export const TOURS: Record<string, TourScript> = {
       { screen: 'today', target: null, chapter: 'today', text: 'That’s the tour, {name}. Your data lives on this device unless you turn on sync; back it up from More whenever you like.' },
     ],
   },
+};
+
+/**
+ * The sync tour: six notes on the Sync page. Only one points at something, the way-to-sync switch, which is always
+ * there; the rest use no target because the setup panels, Sync now and the code come and go.
+ */
+TOURS.sync = {
+  chapters: [{ id: 'sync', label: 'Sync' }],
+  done: 'Got it',
+  steps: [
+    { screen: 'sync', target: null, text: 'Why sync? Your log lives on this device. If you train with a phone and a computer, syncing keeps them level, with no account in between.' },
+    { screen: 'sync', target: 'sync-method', text: 'Three ways. A pairing code is the easiest and works anywhere. A cloud folder uses a Dropbox, OneDrive or Drive you already have. A file is fully by hand: save it here, merge it there.' },
+    { screen: 'sync', target: null, text: 'Setup is once per device. On the first one, choose a way and make a code or pick a folder. On the second, enter that same code or pick the same folder.' },
+    { screen: 'sync', target: null, text: 'Sync now merges straight away. Sync automatically also does it when Analog opens, every so often, and when you put it away, so the other device sees your latest.' },
+    { screen: 'sync', target: null, text: 'If both devices changed the same thing, the newer edit wins. Deleting something removes it on both. Merging twice never doubles anything. With a code your data is scrambled before it leaves, so even the server can’t read it.' },
+    { screen: 'sync', target: null, chapter: 'sync', text: 'That’s sync. It’s all optional: turn it off any time and your data stays right here.' },
+  ],
 };
 
 export type Made = Partial<Record<MakeKind, { id: string; name: string }>>;

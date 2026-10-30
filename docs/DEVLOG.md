@@ -5,6 +5,20 @@ For the plain state of each part, see [STATUS.md](STATUS.md); for every judgemen
 
 ---
 
+## 2026-10-30 · 0.5.0: the install count, the survey answers, the sync tour
+
+**One Worker, three jobs.** `worker/index.js` now also takes `POST /survey` and `POST /install` (opt-in, anonymous, `{withdraw:true}` deletes) and serves `GET /stats` to the owner only. Records are R2 objects whose fields live in custom metadata, so `/stats` reads a thousand of them per list call instead of one `get` each. The payloads are validated field by field (ids, lengths, the platform list, the date shape), limited to 4 KB, and share the write rate limit. `/stats` is off (404) until the `ADMIN_TOKEN` secret exists, compares the token in constant time, and never returns an install id. `npm run stats` (`scripts/stats.mjs`, with `ANALOG_ADMIN_TOKEN`) prints it.
+
+**Survey answers now arrive.** `SURVEY_URL` is the relay's `/survey`, so the send code that was tested against a fake server since 0.2.0 has somewhere real to go. It is still opt-in and off by default; the consent page previews the exact JSON.
+
+**Install count.** Its own switch (`shareInstall`, `installSentAt`, both device-only and never in a backup), in the welcome consent page and in Settings. Separate from the survey so it works when every question was skipped; the random id is made only when either switch is first turned on. One record per install, sent once; turning it off after a send asks the server to delete it.
+
+**Sync tour.** Six notes on the Sync page, one target (the always-present way-to-sync switch), the rest centred because the setup panels, Sync now and the code come and go. Auto-starts 600 ms after the first visit once the welcome flow is done (`toursSeen`), "Re-tour" replays it. The tour framework no longer builds the throwaway sample database for a tour that never shows History, Stats or a workout, and a tour that begins on the page it is about does not push a second copy of it.
+
+**Checked:** typecheck, lint, 319 tests, including the app's own posts answered by the real Worker over a fake bucket and read back through `/stats`. **Not checked:** the deployed Worker (redeploy and set `ADMIN_TOKEN` first), the tour in a real window, two real devices syncing, the Rust folder commands, Android's `Documents/Analog`.
+
+---
+
 ## 2026-10-30 · 0.4.0: sync, and nothing goes online unless you say so
 
 **Device sync, opt-in and off by default** (`src/sync`, `worker/`, More, then Sync between devices). Each device keeps a complete copy and syncing merges snapshots; there is no primary device and no account. Three ways carry the same snapshot into one `mergeBackup`:

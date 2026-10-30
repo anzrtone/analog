@@ -21,8 +21,14 @@ function fakeBucket() {
     async head(key: string) {
       return items.get(key) ?? null;
     },
-    async put(key: string, body: Uint8Array, opts: { customMetadata?: Record<string, string> }) {
-      items.set(key, { body, uploaded: new Date(), customMetadata: opts.customMetadata });
+    async put(key: string, body: Uint8Array | string, opts: { customMetadata?: Record<string, string> }) {
+      items.set(key, { body: typeof body === 'string' ? new TextEncoder().encode(body) : body, uploaded: new Date(), customMetadata: opts.customMetadata });
+    },
+    async list({ prefix = '', cursor, limit = 1000 }: { prefix?: string; cursor?: string; limit?: number }) {
+      const all = [...items].filter(([k]) => k.startsWith(prefix)).sort(([a], [b]) => (a < b ? -1 : 1));
+      const from = cursor ? Number(cursor) : 0;
+      const page = all.slice(from, from + limit);
+      return { objects: page.map(([key, o]) => ({ key, uploaded: o.uploaded, customMetadata: o.customMetadata })), truncated: from + limit < all.length, cursor: String(from + limit) };
     },
     async delete(key: string) {
       items.delete(key);
@@ -112,5 +118,86 @@ describe('sync relay worker', () => {
     const pre = await call(env, 'OPTIONS', null);
     expect(pre.status).toBe(204);
     expect(pre.headers.get('access-control-allow-headers')).toContain('x-sync-token');
+  });
+});
+
+const ME = '11111111-2222-4333-8444-555555555555';
+const post = (env: unknown, path: string, body: unknown, raw?: string) =>
+  worker.fetch(new Request(`https://relay.test${path}`, { method: 'POST', body: raw ?? JSON.stringify(body) }), env) as Promise<Response>;
+const survey = (over: Record<string, unknown> = {}) => ({ v: 1, installId: ME, uses: ['strength', 'other'], usesOther: 'rowing', heardFrom: 'reddit', platform: 'android', appVersion: '0.5.0', answeredOn: '2026-10-30', ...over });
+const install = (over: Record<string, unknown> = {}) => ({ v: 1, installId: ME, platform: 'desktop', appVersion: '0.5.0', day: '2026-10-30', ...over });
+const stats = (env: unknown, auth?: string) => worker.fetch(new Request('https://relay.test/stats', { headers: auth ? { authorization: auth } : {} }), env) as Promise<Response>;
+
+describe('survey and install records', () => {
+  it('stores an opted-in survey and an install, and deletes them on withdraw', async () => {
+    const bucket = fakeBucket();
+    const env = { SYNC_BUCKET: bucket };
+    expect((await post(env, '/survey', survey())).status).toBe(204);
+    expect((await post(env, '/install', install())).status).toBe(204);
+    expect(bucket.items.get(`survey/${ME}`)!.customMetadata).toMatchObject({ uses: 'strength,other', heardFrom: 'reddit', platform: 'android' });
+    expect(bucket.items.get(`install/${ME}`)!.customMetadata).toMatchObject({ platform: 'desktop', appVersion: '0.5.0', day: '2026-10-30' });
+    // Sending again replaces it: one record per install.
+    await post(env, '/survey', survey({ heardFrom: 'friend' }));
+    expect([...bucket.items.keys()].filter((k) => k.startsWith('survey/'))).toHaveLength(1);
+    expect(bucket.items.get(`survey/${ME}`)!.customMetadata!.heardFrom).toBe('friend');
+    expect((await post(env, '/survey', { v: 1, installId: ME, withdraw: true })).status).toBe(204);
+    expect(bucket.items.has(`survey/${ME}`)).toBe(false);
+    expect(bucket.items.has(`install/${ME}`)).toBe(true);
+    expect((await post(env, '/install', { v: 1, installId: ME, withdraw: true })).status).toBe(204);
+    expect(bucket.items.size).toBe(0);
+  });
+
+  it('rejects anything that is not what the app sends', async () => {
+    const env = { SYNC_BUCKET: fakeBucket() };
+    expect((await post(env, '/survey', null, 'not json')).status).toBe(400);
+    expect((await post(env, '/survey', survey({ installId: '../x' }))).status).toBe(400);
+    expect((await post(env, '/survey', survey({ v: 2 }))).status).toBe(400);
+    expect((await post(env, '/survey', survey({ platform: 'toaster' }))).status).toBe(400);
+    expect((await post(env, '/survey', survey({ uses: 'strength' }))).status).toBe(400);
+    expect((await post(env, '/survey', survey({ usesOther: 'x'.repeat(500) }))).status).toBe(400);
+    expect((await post(env, '/install', install({ day: 'today' }))).status).toBe(400);
+    expect((await post(env, '/install', install(), 'x'.repeat(5000))).status).toBe(413);
+    expect((await worker.fetch(new Request('https://relay.test/survey'), env) as Response).status).toBe(405);
+  });
+
+  it('rate-limits records like writes', async () => {
+    const env = { SYNC_BUCKET: fakeBucket(), SYNC_LIMITER: { limit: async () => ({ success: false }) } };
+    expect((await post(env, '/install', install())).status).toBe(429);
+  });
+});
+
+describe('owner stats', () => {
+  const seed = async (env: { SYNC_BUCKET: ReturnType<typeof fakeBucket> }) => {
+    await post(env, '/install', install({ installId: 'aaaaaaaa-0000' }));
+    await post(env, '/install', install({ installId: 'bbbbbbbb-0000', platform: 'android', appVersion: '0.4.0' }));
+    await post(env, '/survey', survey({ installId: 'aaaaaaaa-0000' }));
+  };
+
+  it('is off until the secret is set, and refuses a wrong token', async () => {
+    const env = { SYNC_BUCKET: fakeBucket() };
+    expect((await stats(env, 'Bearer nope')).status).toBe(404);
+    const on = { ...env, ADMIN_TOKEN: 'secret' };
+    expect((await stats(on)).status).toBe(401);
+    expect((await stats(on, 'Bearer wrong')).status).toBe(401);
+  });
+
+  it('counts installs and tallies the answers, without ever returning an id', async () => {
+    const env = { SYNC_BUCKET: fakeBucket(), ADMIN_TOKEN: 'secret' };
+    await seed(env);
+    const res = await stats(env, 'Bearer secret');
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(text).not.toContain('aaaaaaaa');
+    const body = JSON.parse(text);
+    expect(body.installs).toMatchObject({ total: 2, byPlatform: { desktop: 1, android: 1 }, byVersion: { '0.5.0': 1, '0.4.0': 1 } });
+    expect(body.surveys).toMatchObject({ total: 1, uses: { strength: 1, other: 1 }, heardFrom: { reddit: 1 } });
+    expect(body.surveys.answers[0]).toMatchObject({ uses: ['strength', 'other'], usesOther: 'rowing', heardFrom: 'reddit' });
+  });
+
+  it('pages through more than one list page', async () => {
+    const bucket = fakeBucket();
+    const env = { SYNC_BUCKET: bucket, ADMIN_TOKEN: 'secret' };
+    for (let i = 0; i < 1200; i++) await bucket.put(`install/${String(i).padStart(8, '0')}`, '{}', { customMetadata: { platform: 'desktop', appVersion: '0.5.0', day: '2026-10-30' } });
+    expect(JSON.parse(await (await stats(env, 'Bearer secret')).text()).installs.total).toBe(1200);
   });
 });

@@ -1,4 +1,4 @@
-# Status (2026-10-30, 0.4.0)
+# Status (2026-10-30, 0.5.0)
 
 Honest state of the rebuild. "Verified" means a test or a check actually ran on this machine.
 
@@ -25,9 +25,8 @@ Honest state of the rebuild. "Verified" means a test or a check actually ran on 
 
 - **Everything native on a phone:** the lock-screen countdown with −15 / +15 / Skip, the exact alarm with the bell and two pulses, the AMTAP stopwatch with Stop, the workout note, queued taps replayed on resume, the hardware back button, `analog://program` links, the share sheet for exports, haptics, keep-awake, Android Auto Backup of `files/backups`, the notification and exact-alarm permission prompts.
 - **The Windows installers** are built by CI but haven't been installed and run. In the real window, only first launch was tried (above): not logging a workout, the Save dialog, the "Rest over" notification or writing an automatic backup.
-- **The anonymous survey:** `SURVEY_URL` is null, so nothing is ever sent; the sending code is tested against a fake server only.
-- **Device sync** (`src/sync`, `worker/`, More, then Sync between devices): the merge, hooks, encryption, relay client, folder and file ways, the Worker (against a fake R2) and the busy/error handling are tested (`tests/sync-*.test.ts`, `tests/worker.test.ts`). `RELAY_URL` is null, so the pairing-code way is hidden until a Worker is deployed. The Rust folder commands compile (`cargo check`) but were not run in the window, and the Android folder (`Documents/Analog` through Capacitor Filesystem) was not run on a phone: scoped storage may need a native piece. Not built: the six-step sync tour.
-- **The anonymous install count** is not built yet; nothing counts installs today.
+- **The anonymous survey and install count:** both point at the relay Worker (`/survey`, `/install`) and are opt-in and off by default. Tested end to end against the real Worker code over a fake bucket; not against the deployed Worker until it is redeployed with `/stats` and the `ADMIN_TOKEN` secret.
+- **Device sync** (`src/sync`, `worker/`, More, then Sync between devices): the merge, hooks, encryption, relay client, folder and file ways, the Worker (against a fake R2) and the busy/error handling are tested (`tests/sync-*.test.ts`, `tests/worker.test.ts`). `RELAY_URL` is null, so the pairing-code way is hidden until a Worker is deployed. The Rust folder commands compile (`cargo check`) but were not run in the window, and the Android folder (`Documents/Analog` through Capacitor Filesystem) was not run on a phone: scoped storage may need a native piece. The six-step sync tour is built and tested in Node, not watched in a real window.
 
 ## Not done / later
 

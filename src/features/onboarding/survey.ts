@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 The Analog contributors
 import type { AppSettings, Survey } from '@/db/settings';
+import type { InstallPayload } from './install';
 
 // Anonymous welcome answers, sent only when the user opts in and only if the app has somewhere to send them
 // (SURVEY_URL). Never the name or any training data. No React in here, so it runs in the Node tests.
@@ -49,7 +50,7 @@ export function surveyPayload(installId: string, survey: Survey, env: SurveyEnv)
   };
 }
 
-export type Post = (url: string, body: SurveyPayload | WithdrawPayload) => Promise<boolean>;
+export type Post = (url: string, body: SurveyPayload | WithdrawPayload | InstallPayload) => Promise<boolean>;
 
 /**
  * Bring the server in line with the settings. Idempotent, so it runs on every launch:

@@ -106,6 +106,8 @@ export interface WizardResult {
   heardFrom: string | null;
   heardOther: string;
   share: boolean;
+  /** Count this install anonymously (its own switch, so it works even when the questions were skipped). */
+  countInstall?: boolean;
   /** From the setup page (full mode only). */
   unit?: AppSettings['unit'];
   effort?: AppSettings['effort'];
@@ -173,8 +175,9 @@ export async function completeOnboarding(db: AnalogDB, s: AppSettings, mode: Onb
     survey,
     shareSurvey: r.share,
     // Made only when someone opts in; kept afterwards so turning sharing off can withdraw the answers.
-    installId: r.share ? (s.installId ?? opts.newId()) : s.installId,
+    installId: r.share || r.countInstall ? (s.installId ?? opts.newId()) : s.installId,
   };
+  if (r.countInstall !== undefined) patch.shareInstall = r.countInstall;
   if (r.name != null) patch.profile = { ...s.profile, name: clip(r.name, 40) };
   if (r.unit) patch.unit = r.unit;
   if (r.effort) patch.effort = r.effort;

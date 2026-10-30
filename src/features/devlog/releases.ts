@@ -24,6 +24,17 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '0.5.0',
+    date: '2026-10-30',
+    summary: 'A guided tour for sync, and two optional ways to help Analog grow. Both start off, and nothing about you is sent.',
+    notes: [
+      { tag: 'new', text: 'The first time you open Sync between devices, a short tour explains the three ways, the setup, and what happens when two devices disagree. “Re-tour” on that page plays it again.' },
+      { tag: 'new', text: 'Count my install: one anonymous record, a random id with your platform and version, so the developer knows how many people use Analog. Off by default, in the welcome questions and in Settings; turning it off deletes the record.' },
+      { tag: 'new', text: 'Share my answers anonymously now works: if you switch it on, your welcome answers reach the developer with that same random id, never your name or your training. Turning it off deletes them.' },
+      { tag: 'better', text: '“See exactly what gets sent” in the welcome questions now shows both messages, word for word.' },
+    ],
+  },
+  {
     version: '0.4.0',
     date: '2026-10-30',
     summary: 'Your devices can now share one log, if you want them to, and the logbook gets three new looks. Nothing goes online unless you turn it on.',

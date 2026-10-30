@@ -105,3 +105,10 @@ Choices made while rebuilding Analog 0.2.0 on the Promodoro stack, with the reas
 - **What does not sync:** unfinished workouts (they stay where they are logged), the bundled exercise library (only custom exercises and overrides travel), progress photos, and every device setting. `SYNCED_PREFS` in `src/db/settings.ts` is the whitelist; `prefsUpdatedAt` moves it as a group. The sync settings (`sync`) are device-only and never in a backup.
 - **Ordinary backups keep their 0.1.0 shape.** Only sync snapshots carry `tombstones`; the 0.1.0 compatibility tests pin that.
 - **The salt is `analog-sync-v1`**, so Analog's relay data cannot be read with another app's code, and the folder file names (`analog-sync-<device>.json`) do not collide with Promodoro's. Sharing data with a sister app means deliberately sharing the salt, relay and a versioned table subset (spec section 8).
+
+## The install count and the survey answers (0.5.0)
+
+- **The survey's `SURVEY_URL` is no longer null.** It is `RELAY_URL + '/survey'`, next to `INSTALL_URL`. Both stay opt-in and off by default; "nothing is ever sent" is replaced by "nothing is sent unless you opt in" everywhere.
+- **One Worker, no database.** Records are R2 objects whose fields sit in custom metadata; `/stats` lists them. It keeps the whole thing to one deploy and nothing to host, and `/stats` is closed until the owner sets `ADMIN_TOKEN`.
+- **A separate switch for the count.** It is not tied to the survey, so skipping the questions does not mean not being counted, and counting never needs an answer. They share the random id, which is made only when a switch is first turned on, and `/stats` never returns it.
+- **A deleted record is really deleted.** Withdrawing deletes the R2 object; the Worker stores no logs of its own.

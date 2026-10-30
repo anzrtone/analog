@@ -6,6 +6,7 @@ import { db } from '@/db/schema';
 import { useSettings, type SyncMethod } from '@/db/settings';
 import { platform } from '@/platform';
 import type { CloudFolder } from '@/platform/types';
+import { startTour } from '@/features/tour/store';
 import { FORGET_PUSH, formatSyncCode, generateSyncCode, mergeSyncFile, normalizeSyncCode, patchSync, saveSyncFile, stopSyncing } from '@/sync';
 import { appSyncDeps, syncNowInApp } from '@/sync/runtime';
 import { ask } from '@/components/Dialog';
@@ -26,7 +27,8 @@ function ago(ms: number, now = Date.now()): string {
 
 /** Optional sync between your own devices. Off until you choose a way; nothing here runs, or is sent, before that. */
 export function SyncScreen() {
-  const s = useSettings().sync;
+  const all = useSettings();
+  const s = all.sync;
   const p = platform();
   const [busy, setBusy] = useState(false);
   const [rested, setRested] = useState(false);
@@ -51,6 +53,13 @@ export function SyncScreen() {
     if (s.method === 'folder' && p.syncFolderMode === 'pick') void p.cloudFolders().then(setClouds, () => setClouds([]));
   }, [s.method, p]);
   useEffect(() => () => void (restTimer.current && clearTimeout(restTimer.current)), []);
+  // The first visit gets the tour, a moment after the page settles, and only once the welcome flow is done.
+  const tourDue = all.onboarded && !all.toursSeen.includes('sync');
+  useEffect(() => {
+    if (!tourDue) return;
+    const t = setTimeout(() => void startTour('sync'), 600);
+    return () => clearTimeout(t);
+  }, [tourDue]);
 
   const setMethod = (method: SyncMethod) => {
     setNote(null);
@@ -129,10 +138,13 @@ export function SyncScreen() {
   return (
     <Screen title="Sync between devices" backButton meta={s.method === 'off' ? 'OFF' : s.method.toUpperCase()}>
       <Pad className="flex flex-col gap-2">
+        <button type="button" className="btn-ghost self-end" onClick={() => void startTour('sync')}>
+          Re-tour
+        </button>
         <p className="text-ink2">Everything stays on your devices unless you turn this on. Syncing just merges the copies on your own devices: new workouts, edits and deletions follow you both ways, and you never need an account.</p>
       </Pad>
 
-      <Section title="WAY TO SYNC">
+      <Section title="WAY TO SYNC" tour="sync-method">
         <Pad className="flex flex-col gap-2">
           <Segmented label="Way to sync" value={s.method} onChange={setMethod} options={methods} />
           {s.method === 'off' ? <MarginNote>{relayOk ? 'Pick a way to sync above. Not sure which? Pairing code is the easiest.' : 'Pick a way to sync above. Cloud folder is the easiest where it is offered; File works everywhere.'}</MarginNote> : null}

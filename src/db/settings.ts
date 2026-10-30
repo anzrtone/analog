@@ -55,6 +55,10 @@ export interface AppSettings {
   installId: string | null;
   /** When the current answers were last sent. Never in backups. */
   surveySentAt: number | null;
+  /** Opted in to being counted as one install. Off unless the user turns it on. Never in backups. */
+  shareInstall: boolean;
+  /** When this install was counted. Never in backups. */
+  installSentAt: number | null;
   /** Feature tours already shown once, by tour id. */
   toursSeen: string[];
   /** App version whose "what's new" this device has shown. Null until the first launch with the dev log. */
@@ -114,7 +118,7 @@ export interface Survey {
 }
 
 /** Device-only settings: never exported, and a restore keeps this device's values. */
-export const DEVICE_ONLY_SETTINGS: string[] = ['installId', 'surveySentAt', 'lastSeenVersion', 'updateCheckedAt', 'latestRelease', 'autoBackupAt', 'sync'];
+export const DEVICE_ONLY_SETTINGS: string[] = ['installId', 'surveySentAt', 'shareInstall', 'installSentAt', 'lastSeenVersion', 'updateCheckedAt', 'latestRelease', 'autoBackupAt', 'sync'];
 
 export const DEFAULT_SETTINGS: AppSettings = {
   unit: 'kg',
@@ -149,6 +153,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   shareSurvey: false,
   installId: null,
   surveySentAt: null,
+  shareInstall: false,
+  installSentAt: null,
   toursSeen: [],
   lastSeenVersion: null,
   checkUpdates: false,

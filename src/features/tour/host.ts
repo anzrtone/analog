@@ -7,7 +7,7 @@ import { AnalogDB, db } from '@/db/schema';
 import { patchSettings, settings } from '@/db/settings';
 import { showDatabase } from '@/db/shown';
 import { blankProgram } from '@/services/templates';
-import { navigate, type Route } from '../nav';
+import { current, navigate, type Route } from '../nav';
 import { suggestionFor } from '../onboarding/logic';
 import { buildSample } from './sample';
 import type { TourScreen } from './script';
@@ -16,14 +16,15 @@ import { setTourHost } from './store';
 // Connects the tour to the real app: navigation, the throwaway sample database, and making programs.
 // The sample is its own Dexie database ("analog-tour-sample"), deleted when the tour ends; the user's is never touched.
 
-const ROUTES: Record<Exclude<TourScreen, 'workout'>, Route> = { today: { name: 'today' }, history: { name: 'history' }, programs: { name: 'programs' }, stats: { name: 'stats' }, more: { name: 'more' } };
+const ROUTES: Record<Exclude<TourScreen, 'workout'>, Route> = { today: { name: 'today' }, history: { name: 'history' }, programs: { name: 'programs' }, stats: { name: 'stats' }, more: { name: 'more' }, sync: { name: 'sync' } };
 const SAMPLE_DB = 'analog-tour-sample';
 
 let scratch: { db: AnalogDB; workoutId: string } | null = null;
 
 export function installTourHost(): void {
   setTourHost({
-    go: (screen) => navigate(screen === 'workout' ? { name: 'workout', id: scratch?.workoutId ?? '' } : ROUTES[screen]),
+    // The sync tour starts on the Sync page: don't stack a second copy of it.
+    go: (screen) => (screen === 'sync' && current().name === 'sync' ? undefined : navigate(screen === 'workout' ? { name: 'workout', id: scratch?.workoutId ?? '' } : ROUTES[screen])),
     prepareSample: async () => {
       if (scratch) return;
       await AnalogDB.delete(SAMPLE_DB);
@@ -57,7 +58,8 @@ export function installTourHost(): void {
     suggestion: () => suggestionFor(settings().survey),
     userName: () => settings().profile.name,
     onEnd: (tourId) => {
-      navigate({ name: 'today' });
+      // The main tour ends at Today; the sync tour ends where it began.
+      if (tourId === 'main') navigate({ name: 'today' });
       const seen = settings().toursSeen;
       if (!seen.includes(tourId)) void patchSettings({ toursSeen: [...seen, tourId] });
     },

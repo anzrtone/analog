@@ -2,10 +2,11 @@
 // Copyright (c) 2026 The Analog contributors
 import { useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react';
 import { BicepsFlexed, Check, ChevronRight, Dumbbell, Gift, HeartPulse, Lightbulb, ListChecks, MessagesSquare, NotebookPen, PenLine, RotateCcw, Search, Share2, ShieldCheck, Smartphone, Store, TvMinimalPlay, Users, Volleyball } from 'lucide-react';
-import { PRIVACY_URL, SURVEY_URL } from '@/config';
+import { INSTALL_URL, PRIVACY_URL, SURVEY_URL } from '@/config';
 import { settings } from '@/db/settings';
 import { formatWeight } from '@/engine/math/units';
 import { HEALTH_DISCLAIMER } from '@/features/copy';
+import { installPayload } from '@/features/onboarding/install';
 import { answeredAny, HEARD, PAGES, toSurvey, USES, type OnboardingMode, type Option, type OptionIcon, type PageId, type WizardResult } from '@/features/onboarding/logic';
 import { finishOnboarding, onboarding, surveyEnv } from '@/features/onboarding/store';
 import { surveyPayload } from '@/features/onboarding/survey';
@@ -56,6 +57,7 @@ function Wizard({ mode }: { mode: OnboardingMode }) {
   const [heard, setHeard] = useState<string | null>(retake ? (s.survey?.heardFrom ?? null) : null);
   const [heardOther, setHeardOther] = useState(retake ? (s.survey?.heardOther ?? '') : '');
   const [share, setShare] = useState(retake ? s.shareSurvey : false);
+  const [count, setCount] = useState(retake ? s.shareInstall : false);
   const [unit, setUnit] = useState(s.unit);
   const [effort, setEffort] = useState(s.effort);
   const busy = useRef(false);
@@ -70,6 +72,7 @@ function Wizard({ mode }: { mode: OnboardingMode }) {
     heardFrom: heard,
     heardOther,
     share,
+    countInstall: count,
     ...(pages.includes('setup') ? { unit, effort } : {}),
   });
   const done = (r: WizardResult) => {
@@ -78,7 +81,7 @@ function Wizard({ mode }: { mode: OnboardingMode }) {
     busy.current = true;
     void finishOnboarding(mode, r);
   };
-  const empty: WizardResult = { name: null, uses: [], usesOther: '', heardFrom: null, heardOther: '', share: s.shareSurvey, skipped: true };
+  const empty: WizardResult = { name: null, uses: [], usesOther: '', heardFrom: null, heardOther: '', share: s.shareSurvey, countInstall: s.shareInstall, skipped: true };
   // "Skip all" on a first install, "Close" otherwise. Closing the returning flow still counts as done, so it never nags.
   const dismiss = () => (mode === 'survey' ? onboarding.set(null) : done(empty));
   const next = () => (last ? done(result()) : setNav({ i: i + 1, dir: 1 }));
@@ -119,7 +122,7 @@ function Wizard({ mode }: { mode: OnboardingMode }) {
       />
     ),
     setup: () => <Setup unit={unit} effort={effort} onUnit={setUnit} onEffort={setEffort} />,
-    consent: () => <Consent result={result()} installId={s.installId} share={share} onShare={setShare} />,
+    consent: () => <Consent result={result()} installId={s.installId} share={share} onShare={setShare} count={count} onCount={setCount} />,
   };
 
   return (
@@ -329,28 +332,36 @@ function SetDemo({ unit, effort }: { unit: 'kg' | 'lb'; effort: 'rir' | 'rpe' })
   );
 }
 
-function Consent({ result, installId, share, onShare }: { result: WizardResult; installId: string | null; share: boolean; onShare: (v: boolean) => void }) {
+function Consent({ result, installId, share, onShare, count, onCount }: { result: WizardResult; installId: string | null; share: boolean; onShare: (v: boolean) => void; count: boolean; onCount: (v: boolean) => void }) {
   const [open, setOpen] = useState(false);
   const [now] = useState(Date.now);
-  if (!answeredAny(result)) return <Title hint="You skipped the questions, so there’s nothing to share. You can answer them later in Settings.">All set.</Title>;
-  if (!SURVEY_URL) return <Title hint="Your answers are saved on this device. Sharing them is always your choice, and it isn’t switched on in this version. You can change them later in Settings.">All set.</Title>;
-  const preview = JSON.stringify(surveyPayload(installId ?? 'a random id, made when you turn this on', toSurvey(result, now), surveyEnv()), null, 2);
+  if (!SURVEY_URL && !INSTALL_URL) return <Title hint="Your answers are saved on this device. Sharing them is always your choice, and it isn’t switched on in this version. You can change them later in Settings.">All set.</Title>;
+  const canShare = !!SURVEY_URL && answeredAny(result);
+  const id = installId ?? 'a random id, made when you turn this on';
+  const previews = [canShare ? surveyPayload(id, toSurvey(result, now), surveyEnv()) : null, INSTALL_URL ? installPayload(id, surveyEnv(), now) : null].filter(Boolean);
+  const switches: { label: string; on: boolean; set: (v: boolean) => void }[] = [
+    ...(canShare ? [{ label: 'Share my answers anonymously', on: share, set: onShare }] : []),
+    ...(INSTALL_URL ? [{ label: 'Count my install', on: count, set: onCount }] : []),
+  ];
   return (
     <>
-      <Title hint="Analog is made by volunteers. Knowing who uses it and how they found it helps decide what to build next.">Help Analog grow?</Title>
-      <div className="flex flex-wrap items-center gap-3">
-        <span className="min-w-[160px] flex-1">Share my answers anonymously</span>
-        <Segmented label="Share my answers anonymously" value={share ? 'on' : 'off'} onChange={(v) => onShare(v === 'on')} options={[{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }]} />
-      </div>
-      {['Never your name or your training data.', 'Turn it off in Settings and your answers are deleted.'].map((line) => (
+      <Title hint="Analog is made by volunteers. Knowing how many people use it, and how they found it, helps decide what to build next. Both are optional and start off.">Help Analog grow?</Title>
+      {answeredAny(result) ? null : <p className="text-ink2">You skipped the questions, so there are no answers to share. You can answer them later in Settings.</p>}
+      {switches.map((sw) => (
+        <div key={sw.label} className="flex flex-wrap items-center gap-3">
+          <span className="min-w-[160px] flex-1">{sw.label}</span>
+          <Segmented label={sw.label} value={sw.on ? 'on' : 'off'} onChange={(v) => sw.set(v === 'on')} options={[{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }]} />
+        </div>
+      ))}
+      {['Never your name or your training data.', 'A random id stands in for you. Turn a switch off in Settings and its record is deleted.'].map((line) => (
         <p key={line} className="flex items-center gap-2.5 text-ink2">
-          <ShieldCheck size={18} strokeWidth={1.75} className="text-ink" /> {line}
+          <ShieldCheck size={18} strokeWidth={1.75} className="shrink-0 text-ink" /> {line}
         </p>
       ))}
       <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="t-label flex min-h-10 items-center gap-1.5 text-ink2">
         <ChevronRight size={16} strokeWidth={1.75} className={cx('transition-transform', open && 'rotate-90')} /> See exactly what gets sent
       </button>
-      {open ? <pre className="t-num-m select-text whitespace-pre-wrap rounded-control bg-sunk p-3 text-[12px] leading-[17px] text-ink2">{preview}</pre> : null}
+      {open ? <pre className="t-num-m select-text whitespace-pre-wrap rounded-control bg-sunk p-3 text-[12px] leading-[17px] text-ink2">{previews.map((p) => JSON.stringify(p, null, 2)).join('\n\n')}</pre> : null}
     </>
   );
 }

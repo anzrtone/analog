@@ -126,7 +126,8 @@ function settle(from: number, dir: 1 | -1): void {
 
 export async function startTour(tourId = 'main'): Promise<void> {
   if (!host || !TOURS[tourId] || state) return;
-  await host.prepareSample();
+  // Only a tour that visits History, Stats or the workout needs the throwaway sample database.
+  if (TOURS[tourId]!.steps.some((s) => SAMPLE_SCREENS.includes(s.screen))) await host.prepareSample();
   state = { tourId, index: 0, dir: 1, made: {} };
   settle(0, 1);
 }

@@ -12,17 +12,20 @@ export const ISSUES_URL = `${REPO_URL}/issues`;
 export const SUPPORT_URL = 'https://supportkori.com/anzar';
 export const PRIVACY_URL = `${SITE_URL}/privacy`;
 /**
+ * The sync relay, a Cloudflare Worker (worker/index.js) that stores one encrypted blob per pairing code. Null: this
+ * build has no relay, the "pairing code" way to sync is hidden, and cloud-folder and file sync still work.
+ * The same Worker takes the opt-in survey answers and install count. Setting it also means adding its origin to
+ * connect-src in src-tauri/tauri.conf.json.
+ */
+export const RELAY_URL: string | null = 'https://analog-sync.promodoro.workers.dev';
+/**
  * Where opted-in welcome answers go (POST, upserted by install id). Null: nothing is ever sent, the consent page
  * says sharing isn't on in this version, and Settings hides the sharing switch.
  * Setting it also means updating the "optional extras" lines in About, the README privacy section and the store listing.
  */
-export const SURVEY_URL: string | null = null;
-/**
- * The sync relay, a Cloudflare Worker (worker/index.js) that stores one encrypted blob per pairing code. Null: this
- * build has no relay, the "pairing code" way to sync is hidden, and cloud-folder and file sync still work.
- * Setting it also means adding its origin to connect-src in src-tauri/tauri.conf.json.
- */
-export const RELAY_URL: string | null = 'https://analog-sync.promodoro.workers.dev';
+export const SURVEY_URL: string | null = RELAY_URL ? `${RELAY_URL}/survey` : null;
+/** Where the opt-in install count goes (one anonymous record per install). Null: nothing is ever sent. */
+export const INSTALL_URL: string | null = RELAY_URL ? `${RELAY_URL}/install` : null;
 /** Release pages, and the API the optional update check asks (only when the user presses Check or turns on the daily check). */
 export const RELEASES_URL = `${REPO_URL}/releases`;
 export const LATEST_RELEASE_API = `https://api.github.com/repos/${REPO}/releases/latest`;

@@ -58,7 +58,7 @@ export function AboutScreen() {
         <Wordmark size={34} />
         <p className="t-title-m">The training log you own.</p>
         <p className="text-ink2">Free, open source and private by design. No account, no ads, no tracking, nothing paywalled. Your data lives on this device, and nothing leaves it unless you opt in.</p>
-        <p className="text-ink2">Everything that goes online is optional and starts switched off: asking GitHub for the newest version number, syncing between your own devices (scrambled before it leaves), and sharing your welcome answers anonymously. Nothing else is ever sent.</p>
+        <p className="text-ink2">Everything that goes online is optional and starts switched off: asking GitHub for the newest version number, syncing between your own devices (scrambled before it leaves), sharing your welcome answers anonymously, and counting your install anonymously. Nothing else is ever sent.</p>
         <button type="button" className="btn-ghost self-start" onClick={() => navigate({ name: 'devlog' })}>
           Dev log: what changed in each release
         </button>
