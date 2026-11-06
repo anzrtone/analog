@@ -119,6 +119,13 @@ export interface CustomSetType {
 export const CUSTOM_PREFIX = 'custom:';
 let customIds: string[] = [];
 
+/** Custom ids carry the prefix, so one can never replace a built-in type such as `working`. */
+export function validCustomSetType(c: unknown): c is CustomSetType {
+  if (typeof c !== 'object' || c === null) return false;
+  const t = c as Partial<CustomSetType>;
+  return typeof t.id === 'string' && t.id.startsWith(CUSTOM_PREFIX) && t.id.length <= 200 && typeof t.label === 'string' && t.label.length <= 200;
+}
+
 /** Swap the registered custom types. Call on load and after every edit. */
 export function registerCustomSetTypes(list: CustomSetType[]): void {
   const raw = SET_TYPE_INFO as unknown as Record<string, SetTypeInfo>;

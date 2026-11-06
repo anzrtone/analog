@@ -7,7 +7,7 @@ import { useSettings, type SyncMethod } from '@/db/settings';
 import { platform } from '@/platform';
 import type { CloudFolder } from '@/platform/types';
 import { startTour } from '@/features/tour/store';
-import { FORGET_PUSH, formatSyncCode, generateSyncCode, mergeSyncFile, normalizeSyncCode, patchSync, saveSyncFile, stopSyncing } from '@/sync';
+import { describeDeletes, FORGET_PUSH, formatSyncCode, generateSyncCode, mergeSyncFile, normalizeSyncCode, patchSync, previewSyncFile, saveSyncFile, stopAndDeleteFromServer, stopSyncing } from '@/sync';
 import { appSyncDeps, syncNowInApp } from '@/sync/runtime';
 import { ask } from '@/components/Dialog';
 import { Field, MarginNote, Pad, Screen, Section, Segmented, ToggleRow } from '@/components/ui';
@@ -66,20 +66,36 @@ export function SyncScreen() {
     void patchSync(db, { method, ...FORGET_PUSH, lastError: null });
   };
 
-  const run = async () => {
+  const run = async (allowLargeDelete = false) => {
     setBusy(true);
     setNote(null);
     try {
-      const r = await syncNowInApp();
+      const r = await syncNowInApp({ allowLargeDelete });
       if (r.status === 'ok') {
         setRested(true);
         restTimer.current = setTimeout(() => setRested(false), REST_MS);
       } else if (r.status === 'skipped') {
         setNote(r.reason === 'busy' ? 'Already syncing.' : r.reason === 'no-code' ? 'Add a sync code first.' : r.reason === 'no-folder' ? 'Choose a folder first.' : 'Pick a way to sync first.');
+      } else if (r.status === 'confirm-deletes') {
+        ask('Remove this much?', `${describeDeletes(r.preview)} If you didn't delete these on another device, don't continue. Analog saves a backup first either way.`, [
+          { text: 'Not now', style: 'cancel' },
+          { text: 'Remove them', style: 'destructive', onPress: () => void run(true) },
+        ]);
       }
     } finally {
       setBusy(false);
     }
+  };
+
+  /** A file can come from anywhere, so any removal it asks for is shown before it happens. */
+  const mergeFile = async (text: string) => {
+    const preview = await previewSyncFile(db, text);
+    const go = () => mergeSyncFile({ db, platform: p }, text).then((r) => setNote(r.summary), (err: Error) => setNote(err.message));
+    if (!preview.rows) return void (await go());
+    ask('Remove this much?', `This file would remove ${preview.workouts} of your ${preview.totalWorkouts} workouts (${preview.rows} rows in all). If you didn't delete these on your other device, don't continue. Analog saves a backup first either way.`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Merge and remove', style: 'destructive', onPress: () => void go() },
+    ]);
   };
 
   const startFirstDevice = async () => {
@@ -119,19 +135,49 @@ export function SyncScreen() {
     }
   };
 
-  const stop = () =>
-    ask('Stop syncing on this device?', 'The other devices keep syncing with each other. Everything already here stays as it is.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Stop syncing',
-        style: 'destructive',
-        onPress: async () => {
-          await stopSyncing(db);
-          setShown(false);
-          setJoining(false);
+  const stopped = () => {
+    setNote(null);
+    setShown(false);
+    setJoining(false);
+  };
+
+  const deleteAndStop = async () => {
+    setBusy(true);
+    setNote(null);
+    try {
+      const r = await stopAndDeleteFromServer(appSyncDeps());
+      if (r.status === 'ok') {
+        stopped();
+        setNote('Stopped syncing and deleted your data from the server.');
+      } else {
+        setNote(r.status === 'busy' ? 'A sync is running. Try again in a moment.' : r.error);
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const stop = () => {
+    const leaveFolderFile = s.dir ? " This device's file stays in the folder; delete it there if you no longer want it." : '';
+    ask(
+      'Stop syncing on this device?',
+      s.code
+        ? 'Everything on this device stays either way. Only delete the server copy from your last paired device: any device still paired puts it back the next time it syncs. If you keep it, the server removes it after 60 days.' + leaveFolderFile
+        : 'The other devices keep syncing with each other. Everything already here stays as it is.' + leaveFolderFile,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        ...(s.code ? [{ text: 'Stop and delete from server', style: 'destructive' as const, onPress: () => void deleteAndStop() }] : []),
+        {
+          text: s.code ? 'Stop, keep server copy' : 'Stop syncing',
+          style: s.code ? 'default' : 'destructive',
+          onPress: async () => {
+            await stopSyncing(db);
+            stopped();
+          },
         },
-      },
-    ]);
+      ],
+    );
+  };
 
   const ready = (s.method === 'relay' && !!s.code) || (s.method === 'folder' && !!s.dir);
 
@@ -149,8 +195,8 @@ export function SyncScreen() {
           <Segmented label="Way to sync" value={s.method} onChange={setMethod} options={methods} />
           {s.method === 'off' ? <MarginNote>{relayOk ? 'Pick a way to sync above. Not sure which? Pairing code is the easiest.' : 'Pick a way to sync above. Cloud folder is the easiest where it is offered; File works everywhere.'}</MarginNote> : null}
           {s.method === 'relay' ? <MarginNote>Pair with a code. Your data is scrambled on this device before it leaves, so the server only holds something it cannot read.</MarginNote> : null}
-          {s.method === 'folder' ? <MarginNote>No server at all: each device writes its own file into a folder your own cloud app already syncs.</MarginNote> : null}
-          {s.method === 'file' ? <MarginNote>Fully manual: save a file on one device, merge it on the other.</MarginNote> : null}
+          {s.method === 'folder' ? <MarginNote>No Analog server, but not encrypted: each device writes a readable copy of your log, including your name and body measurements, into a folder your own cloud app already syncs. Anyone who can open that folder can read it. To keep it encrypted, use a pairing code.</MarginNote> : null}
+          {s.method === 'file' ? <MarginNote>Fully manual: save a file on one device, merge it on the other. The file is readable, not encrypted, so keep it somewhere you trust.</MarginNote> : null}
         </Pad>
       </Section>
 
@@ -205,7 +251,7 @@ export function SyncScreen() {
           <Pad className="flex flex-col gap-2">
             {p.syncFolderMode === 'fixed' ? (
               <>
-                <p className="text-ink2">Analog keeps its sync file in Documents/Analog on this phone. Let your sync app (Syncthing, Drive, whichever you use) copy that folder, and nothing needs creating.</p>
+                <p className="text-ink2">Analog keeps its sync file in Documents/Analog on this phone. Let your sync app (Syncthing, Drive, whichever you use) copy that folder, and nothing needs creating. Other apps with file access on this phone can read or change what's in it.</p>
                 {!s.dir ? (
                   <button type="button" className="btn-primary" onClick={() => void chooseFolder()}>
                     Use Documents/Analog
@@ -244,7 +290,7 @@ export function SyncScreen() {
                     <button type="button" className="btn-ghost" onClick={() => void chooseFolder()}>
                       Change…
                     </button>
-                    <button type="button" className="btn-ghost" onClick={() => void p.revealFolder(s.dir!)}>
+                    <button type="button" className="btn-ghost" onClick={() => void p.revealFolder(s.dir!).catch(() => setNote("Couldn't open that folder."))}>
                       Open
                     </button>
                   </div>
@@ -267,8 +313,8 @@ export function SyncScreen() {
               e.target.value = '';
               if (!f) return;
               f.text()
-                .then((t) => mergeSyncFile({ db }, t))
-                .then((r) => setNote(r.summary), (err: Error) => setNote(err.message));
+                .then(mergeFile)
+                .catch((err: Error) => setNote(err.message));
             }}
           />
           <Pad className="flex flex-col gap-2">
@@ -303,9 +349,9 @@ export function SyncScreen() {
         </Pad>
       ) : null}
 
-      {s.method !== 'off' && (s.code || s.dir || s.lastAt) ? (
+      {s.code || (s.method !== 'off' && (s.dir || s.lastAt)) ? (
         <Pad className="pt-4">
-          <button type="button" className="btn-ghost" onClick={stop}>
+          <button type="button" className="btn-ghost" disabled={busy} onClick={stop}>
             Stop syncing on this device
           </button>
         </Pad>

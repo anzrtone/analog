@@ -9,7 +9,7 @@
 - A rest timer on the lock screen with −15 / +15 / Skip, and a bell that rings on time with the screen off.
 - Share cards, program links and QR codes. Strong and Hevy import. JSON and CSV export. Automatic daily backups.
 
-The product spec and design language live in [docs/SPEC.md](docs/SPEC.md) and [docs/BRAND.md](docs/BRAND.md). They are the source of truth. What changed in 0.5.0 and why: [docs/DEVLOG.md](docs/DEVLOG.md) and [docs/DECISIONS.md](docs/DECISIONS.md).
+The product spec and design language live in [docs/SPEC.md](docs/SPEC.md) and [docs/BRAND.md](docs/BRAND.md). They are the source of truth. What changed in 0.6.0 and why: [docs/DEVLOG.md](docs/DEVLOG.md) and [docs/DECISIONS.md](docs/DECISIONS.md).
 
 ## Status
 
@@ -74,11 +74,17 @@ $env:TEMP="D:\tmp"; $env:TMP="D:\tmp"; $env:npm_config_cache="D:\tmp\npm"
 
 CI (`.github/workflows/build.yml`) runs typecheck, lint, tests and the web build on every push and pull request, then builds the Windows installers and the APK. To publish a release:
 
-1. Bump `version` in `package.json`.
+1. Bump the version in `package.json`, `src-tauri/Cargo.toml` and `android/app/build.gradle`, then run `cargo update -p analog` in `src-tauri` so `Cargo.lock` matches. CI builds with `--locked`, so a stale lockfile fails the build.
 2. Add the release at the top of `RELEASES` in `src/features/devlog/releases.ts` (a test fails until you do) and give it a `date`.
-3. Commit, tag `vX.Y.Z` and push the tag. CI attaches the installers, the portable .exe, the APK and `SHA256SUMS.txt` to a GitHub release.
+3. Commit, tag `vX.Y.Z` and push the tag. CI attaches the installers, the portable .exe, the APK and `SHA256SUMS.txt` to a GitHub release, and publishes a build attestation for each file.
 
-For a signed APK, add these repository secrets: `ANDROID_KEYSTORE_BASE64` (the keystore, base64), `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`. Without them CI builds a debug-signed APK and says so in a warning.
+Check a download came from this repo's CI:
+
+```bash
+gh attestation verify Analog-X.Y.Z.apk --repo anzrtone/analog
+```
+
+Releases need these repository secrets: `ANDROID_KEYSTORE_BASE64` (the keystore, base64), `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`. A tag build fails without them, or if the APK comes out debug-signed or debuggable. Other builds fall back to a debug-signed APK and say so in a warning.
 
 ## Layout
 
@@ -101,11 +107,11 @@ scripts/         browse.mjs (headless Edge for screenshots), walks/, android-res
 Everything is stored on your device, in the app's own IndexedDB, and Analog works the same whether or not you ever use anything below. Nothing goes online unless you opt in, and every one of these is off until you turn it on:
 
 - **Release check.** Asks GitHub's public release list for the newest version, when you press **Check** on the dev log or turn on the daily check. No cookies, no referrer, nothing about you.
-- **Device sync** (More, then Sync between devices). Merges your own devices through a pairing code, a cloud folder you already use, or a file you carry. With a pairing code the data is encrypted on your device before it is sent, and the relay stores only ciphertext it cannot read; the code never leaves your devices. Cloud-folder and file sync involve no Analog server at all. See `worker/` for the relay's source.
+- **Device sync** (More, then Sync between devices). Merges your own devices through a pairing code, a cloud folder you already use, or a file you carry. With a pairing code the data is encrypted on your device before it is sent, and the relay stores only ciphertext it cannot read; the code never leaves your devices. Stopping sync offers to delete the server copy, and otherwise the relay removes it after 60 days. Cloud-folder and file sync involve no Analog server, but they aren't encrypted: your log, including your name and body measurements, is written as readable JSON, so your cloud provider and anyone who can open the folder can read it. On Android the folder is the public `Documents/Analog`, where other apps with file access can read or change it. See `worker/` for the relay's source.
 - **Welcome answers.** The questions you answer on first run stay on the device. Sharing them anonymously is a separate switch, off by default, and turning it off asks the server to delete them.
 - **Install count.** Another separate switch, off by default: it sends one record per install, a random id, your platform, the version and the day, so the developer knows roughly how many people use Analog. Nothing about you or your training. Turning it off deletes the record.
 
-The Worker keeps no IP addresses and no user agents. Only the developer can read the totals and the shared answers (`npm run stats`), and the answers are returned without the random id.
+The Worker keeps no IP addresses and no user agents; addresses are used in memory for rate limits and never written down. Only the developer can read the totals and the shared answers (`npm run stats`), and the answers are returned without the random id.
 
 Progress photos stay out of backups and out of sync.
 

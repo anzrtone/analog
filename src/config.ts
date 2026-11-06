@@ -29,3 +29,15 @@ export const INSTALL_URL: string | null = RELAY_URL ? `${RELAY_URL}/install` : n
 /** Release pages, and the API the optional update check asks (only when the user presses Check or turns on the daily check). */
 export const RELEASES_URL = `${REPO_URL}/releases`;
 export const LATEST_RELEASE_API = `https://api.github.com/repos/${REPO}/releases/latest`;
+
+const LINK_HOSTS = new Set(['github.com', 'analog-app.github.io', 'supportkori.com', 'www.supportkori.com']);
+
+/** The only places the app ever sends someone. Same list as the opener scope in src-tauri/capabilities/default.json. */
+export function allowedLink(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return u.protocol === 'https:' && LINK_HOSTS.has(u.hostname);
+  } catch {
+    return false;
+  }
+}

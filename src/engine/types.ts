@@ -51,7 +51,8 @@ export const MUSCLE_LABEL: Record<Muscle, string> = {
   neckExtensors: 'neck extensors',
 };
 
-export type LoggingMode = 'weightReps' | 'bodyweight' | 'assisted' | 'time' | 'distance' | 'reps';
+export const LOGGING_MODES = ['weightReps', 'bodyweight', 'assisted', 'time', 'distance', 'reps'] as const;
+export type LoggingMode = (typeof LOGGING_MODES)[number];
 export const BUILT_IN_EQUIPMENT = ['barbell', 'dumbbell', 'machine', 'cable', 'bodyweight', 'kettlebell', 'band', 'ezBar', 'smith', 'dipBelt'] as const;
 /** A built-in kind, 'other', or free text the user typed (a custom piece of equipment). */
 export type Equipment =

@@ -5,6 +5,26 @@ For the plain state of each part, see [STATUS.md](STATUS.md); for every judgemen
 
 ---
 
+## 2026-11-05 · Security fixes after the audit
+
+**The relay had no ceiling on what it could cost.** Anyone could store 20 MB under a random name, and each IPv6 address was its own rate limit. Rate limits only slow one network down, so the Worker now has a spending ledger, one Durable Object that every billable write asks first (`worker/budget.js`). The budgets fit inside R2's free allowance, and any missing piece refuses the request. Bodies stream straight to R2, so a chunked upload is refused rather than buffered. A scheduled walk deletes expired blobs, so expiry no longer rests on a dashboard rule.
+
+**The Worker could not start in the real runtime.** Its named constants count as entrypoints there, and the tests never noticed because they imported it into Node. The constants moved to `worker/limits.js`, and `tests/worker-live.test.ts` now runs it in workerd.
+
+**Nothing from outside the app is trusted any more.** Settings are checked as they load, so a bad value can no longer stop the app opening. Merges skip damaged rows and refuse times more than a day ahead. Losing a good part of the history in one sync needs a yes and leaves a backup first. Restoring beats old graves, so the next sync does not undo it. Shared links open on a preview and save nothing until told to.
+
+**Desktop and phone now share one navigation list.** Sync could not be reached on desktop at all: the sidebar had its own list, and the only link was on the phone's More tab. The sidebar now shows the same seven items as the phone, with the rest on More for both (`features/navItems.ts`).
+
+**A release can no longer ship debug-signed.** A missing secret used to produce a warning and a debuggable APK on the release page. A tag build now stops, and a second check inspects the finished APK. Actions are pinned to commit SHAs, and the third-party release action is gone, so only GitHub's own tools run with write access. Each file gets a build attestation, and the Gradle wrapper and `Cargo.lock` are enforced. The tag path can't run without a real tag, so its scripts were tested against fake tools and the next release is its first real run.
+
+**Stopping sync can now delete the server copy.** The dialog offers it, and warns that a device still paired puts it back on its next sync. If the server can't delete, the code stays, so it can be tried again. Cloud-folder and file sync now say plainly that they aren't encrypted, since "no server at all" read as more private than the relay.
+
+**Smaller limits.** Android cloud backup now needs on-device encryption, so a phone with no screen lock gets no cloud backup. Desktop's "Open folder" only opens a real sync folder. Android now has a Content Security Policy: the build copies Tauri's into the page, so there's one policy to maintain. It keeps `ipc:`, because desktop applies both and would otherwise lose IPC.
+
+**Checked:** typecheck, lint, the full test suite with the Worker in workerd, attacks on the local relay (`tests/hostile-input.test.ts` keeps the client ones), and in the browser: the preview, a damaged program reaching the error boundary, and poisoned settings across a reload. Also the Worker on Cloudflare, including delete on the live relay, and the built Windows app with the page's policy and Tauri's both active: IPC works, and "Open folder" refuses a program, a system folder and a missing path. **Not checked:** anything on Android, including the new policy and backup rules, and the real "Stop and delete" press from an installed app. A few smaller hardening items are still open.
+
+---
+
 ## 2026-10-30 · 0.5.0: the install count, the survey answers, the sync tour
 
 **One Worker, three jobs.** `worker/index.js` now also takes `POST /survey` and `POST /install` (opt-in, anonymous, `{withdraw:true}` deletes) and serves `GET /stats` to the owner only. Records are R2 objects whose fields live in custom metadata, so `/stats` reads a thousand of them per list call instead of one `get` each. The payloads are validated field by field (ids, lengths, the platform list, the date shape), limited to 4 KB, and share the write rate limit. `/stats` is off (404) until the `ADMIN_TOKEN` secret exists, compares the token in constant time, and never returns an install id. `npm run stats` (`scripts/stats.mjs`, with `ANALOG_ADMIN_TOKEN`) prints it.

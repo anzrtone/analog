@@ -53,5 +53,6 @@ export function exportCsv(rows: ExportSetRow[], unit: WeightUnit): string {
     Side: r.side ?? '',
     Group: r.group ?? '',
   }));
-  return Papa.unparse(data, { newline: '\n' });
+  // Names and notes can come from a shared program or an import. A spreadsheet would run one starting with = as a formula.
+  return Papa.unparse(data, { newline: '\n', escapeFormulae: true });
 }

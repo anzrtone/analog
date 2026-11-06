@@ -44,6 +44,29 @@ export function formatClock(ms: number, hundredths = false): string {
   return neg ? `−${out}` : out;
 }
 
+/**
+ * What someone types for a time, in milliseconds: "1:12", "72", "1m12", "1m 12s", "1h2m3s", "1:02:03", "72.5".
+ * A bare number is seconds. Null when it isn't a time (or the seconds/minutes part runs past 59 in a colon form).
+ */
+export function parseDuration(text: string): number | null {
+  const t = text.trim().toLowerCase().replace(/,/g, '.').replace(/\s+/g, '');
+  if (!t) return null;
+  if (/^\d*\.?\d+$/.test(t) || /^\d+\.$/.test(t)) return Math.round(Number(t) * 1000);
+  if (t.includes(':')) {
+    const parts = t.split(':');
+    if (parts.length > 3 || parts.some((p, i) => !(i === parts.length - 1 ? /^\d{1,2}(\.\d+)?$/ : /^\d{1,3}$/).test(p))) return null;
+    const nums = parts.map(Number);
+    const sec = nums[nums.length - 1]!;
+    const min = nums.length === 1 ? 0 : nums[nums.length - 2]!;
+    const hr = nums.length === 3 ? nums[0]! : 0;
+    if (sec >= 60 || (nums.length === 3 && min >= 60)) return null;
+    return Math.round(((hr * 60 + min) * 60 + sec) * 1000);
+  }
+  const m = t.match(/^(?:(\d+)h)?(?:(\d+)m(?:in)?)?(?:(\d*\.?\d+)s?)?$/);
+  if (!m || (m[1] == null && m[2] == null && m[3] == null)) return null;
+  return Math.round(((Number(m[1] ?? 0) * 60 + Number(m[2] ?? 0)) * 60 + Number(m[3] ?? 0)) * 1000);
+}
+
 /** Long durations: "1 h 12 m", "45 m", "30 s". */
 export function formatDuration(ms: number): string {
   const totalMin = Math.round(ms / 60000);

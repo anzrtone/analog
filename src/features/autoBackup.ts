@@ -27,6 +27,20 @@ export type BackupOutcome = { status: 'written'; path: string; pruned: number } 
 let running = false;
 
 /**
+ * A copy of everything just before a merge removes rows, under its own name so the day's normal backup can't replace
+ * it. The first one of the day is kept: that is the one from before anything went wrong. Never stops the merge.
+ */
+export async function safetyBackup(d: AnalogDB, p: Platform, now = Date.now()): Promise<void> {
+  const name = `analog-backup-${localDay(now)}-before-merge.json`;
+  try {
+    if ((await p.listBackups()).includes(name)) return;
+    await p.writeBackup(name, JSON.stringify(await exportAll(d, now)), KEEP_BACKUPS);
+  } catch (err) {
+    console.warn('[backup] no safety copy before the merge', err);
+  }
+}
+
+/**
  * `workout`: a workout was just finished; always write (today's file is rewritten).
  * `launch`: write only if today's backup isn't there yet and there is something worth keeping.
  */

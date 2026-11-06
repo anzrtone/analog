@@ -15,6 +15,8 @@ import { startOnboardingIfNeeded } from '@/features/onboarding/store';
 import { installTourHost } from '@/features/tour/host';
 import { navigate } from '@/features/nav';
 import { applyNativeAction, applyNativeActions } from '@/features/workout/timers';
+import { deepLinkData } from '@/engine/programs/share';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { loadPlatform } from '@/platform';
 import { startSync } from '@/sync/runtime';
 import { App } from './App';
@@ -41,8 +43,9 @@ async function boot() {
     onResume: () => void applyNativeActions(),
     onBack: handleBack,
     onDeepLink: (url) => {
-      const d = /[?&]d=([^&]+)/.exec(url)?.[1];
-      if (url.startsWith('analog://program') && d) navigate({ name: 'programImport', data: decodeURIComponent(d) });
+      // Any web page or app can open one of these, during boot too: a bad one must do nothing at all.
+      const data = deepLinkData(url);
+      if (data) navigate({ name: 'programImport', data });
     },
   });
   void applyNativeActions();
@@ -54,7 +57,9 @@ async function boot() {
 
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
-      <App />
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
     </StrictMode>,
   );
   installTourHost();

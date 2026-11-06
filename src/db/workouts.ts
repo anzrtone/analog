@@ -149,12 +149,26 @@ export async function updateWorkout(d: AnalogDB, id: string, patch: Partial<Work
   await d.workouts.update(id, patch);
 }
 
+/** Sets you never ticked don't belong in history; exercises left with no sets go with them. */
+async function dropUnticked(d: AnalogDB, id: string): Promise<void> {
+  const unticked = await d.workoutSets.where('workoutId').equals(id).filter((s) => s.completedAt == null).primaryKeys();
+  await d.workoutSets.bulkDelete(unticked);
+}
+
 export async function finishWorkout(d: AnalogDB, id: string, now = Date.now()): Promise<void> {
   await d.transaction('rw', d.workouts, d.workoutSets, async () => {
-    // Sets you never ticked don't belong in history.
-    const unticked = await d.workoutSets.where('workoutId').equals(id).filter((s) => s.completedAt == null).primaryKeys();
-    await d.workoutSets.bulkDelete(unticked);
+    await dropUnticked(d, id);
     await d.workouts.update(id, { endedAt: now, open: undefined });
+  });
+}
+
+/** Leaving the editor on a finished workout: the same tidy-up as finishing, plus dropping exercises with no sets. */
+export async function tidyEditedWorkout(d: AnalogDB, id: string): Promise<void> {
+  await d.transaction('rw', d.workoutExercises, d.workoutSets, async () => {
+    await dropUnticked(d, id);
+    const used = new Set((await d.workoutSets.where('workoutId').equals(id).toArray()).map((s) => s.workoutExerciseId));
+    const empty = (await d.workoutExercises.where('workoutId').equals(id).toArray()).filter((e) => !used.has(e.id)).map((e) => e.id);
+    await d.workoutExercises.bulkDelete(empty);
   });
 }
 
@@ -341,12 +355,12 @@ export async function exerciseHistory(d: AnalogDB, exerciseId: string, excludeWo
  * PR-eligible types only. PRs compare values, never which past set held them, so this gives the same PRs as
  * the full history while staying a few hundred rows after years of the same lift.
  */
-export async function prBaseline(d: AnalogDB, exerciseId: string, excludeWorkoutId?: string): Promise<LoggedSet[]> {
+export async function prBaseline(d: AnalogDB, exerciseId: string, excludeWorkoutId?: string, beforeMs?: number): Promise<LoggedSet[]> {
   const eligible = new Set(prEligibleTypes());
   const groups = new Map<string, LoggedSet>();
   await d.workoutSets
     .where('[exerciseId+completedAt]')
-    .between([exerciseId, Dexie.minKey], [exerciseId, Dexie.maxKey])
+    .between([exerciseId, Dexie.minKey], [exerciseId, beforeMs ?? Dexie.maxKey])
     .each((s) => {
       if (!eligible.has(s.type) || s.workoutId === excludeWorkoutId) return;
       const key = `${s.type}|${s.weightG}|${s.reps}|${s.rir}|${s.rpe}|${s.timeMs}|${s.side}`;

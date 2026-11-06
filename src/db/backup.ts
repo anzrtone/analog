@@ -4,8 +4,9 @@ import { groupLabels } from '@/engine/timer/rest';
 import type { ExportSetRow } from '@/engine/export/csv';
 import { exerciseRow } from './exercises';
 import { TABLE_NAMES, tables, type AnalogDB, type TableName, type TombstoneRow, type WorkoutRow } from './schema';
-import { skipSyncStamping } from '@/sync/stamp';
-import { DEVICE_ONLY_SETTINGS } from './settings';
+import { ridOf, skipSyncStamping, SYNC_TABLES, tombstoneId } from '@/sync/stamp';
+import { DEVICE_ONLY_SETTINGS, validSetting } from './settings';
+import { validRow } from './validate';
 import { finishedWorkouts, getWorkout, setRow, workoutExerciseRow, workoutRow } from './workouts';
 import { getExercises } from './exercises';
 
@@ -46,8 +47,8 @@ export function checkBackup(text: string): RestoreCheck {
   } catch {
     return { ok: false, error: "This file isn't valid JSON." };
   }
-  const f = parsed as Partial<BackupFile>;
-  if (f.app !== 'analog' || !f.tables) return { ok: false, error: "This isn't an Analog backup." };
+  const f = (parsed ?? {}) as Partial<BackupFile>;
+  if (f.app !== 'analog' || typeof f.tables !== 'object' || f.tables === null) return { ok: false, error: "This isn't an Analog backup." };
   if (f.format !== 1) return { ok: false, error: 'This backup was made by a newer Analog. Update the app to restore it.' };
   const counts: Record<string, number> = {};
   for (const name of TABLE_NAMES) {
@@ -70,26 +71,52 @@ export function normalise(name: TableName, rows: unknown[]): unknown[] {
     case 'exercises':
       return (rows as Parameters<typeof exerciseRow>[0][]).map((e) => exerciseRow(e));
     case 'settings':
-      return (rows as { key: string; value: unknown }[]).filter((r) => !DEVICE_ONLY_SETTINGS.includes(r.key) && r.value != null);
+      return (rows as { key: string; value: unknown }[]).filter((r) => !DEVICE_ONLY_SETTINGS.includes(r.key) && r.value != null && validSetting(r.key, r.value));
     default:
       return rows;
   }
 }
 
-/** Replace everything with the backup's contents, in one transaction: all or nothing. This device's own settings stay. */
-export async function restoreAll(d: AnalogDB, file: BackupFile): Promise<void> {
-  await d.transaction('rw', tables(d), async () => {
+/**
+ * Replace everything with the backup's contents, in one transaction: all or nothing. This device's own settings stay.
+ * Returns how many rows were left out as damaged.
+ *
+ * A row whose grave is still here gets a fresh stamp and loses the grave. The person just chose to bring it back, and
+ * without this the next sync would delete it again, including when the graves are what they are restoring from.
+ */
+export async function restoreAll(d: AnalogDB, file: BackupFile, now = Date.now()): Promise<{ skipped: number }> {
+  let skipped = 0;
+  await d.transaction('rw', [...tables(d), d.tombstones], async () => {
     // The file's rows keep the stamps they came with; this is not an edit made now.
     skipSyncStamping();
     for (const name of TABLE_NAMES) {
       if (name === 'settings') await d.settings.filter((r) => !DEVICE_ONLY_SETTINGS.includes(r.key)).delete();
       else await d.table(name).clear();
     }
+    const graves = new Set((await d.tombstones.toArray()).map((g) => g.id));
     for (const name of TABLE_NAMES) {
-      const rows = normalise(name, file.tables[name] ?? []);
+      const sent = (file.tables[name] ?? []) as unknown[];
+      if (name === 'settings') {
+        const rows = normalise(name, sent.filter((r) => typeof r === 'object' && r !== null));
+        if (rows.length) await d.table(name).bulkPut(rows);
+        continue;
+      }
+      const good = sent.filter((r) => validRow(d, name, r));
+      skipped += sent.length - good.length;
+      const rows = normalise(name, good);
+      if ((SYNC_TABLES as readonly string[]).includes(name)) {
+        const path = d.table(name).schema.primKey.keyPath;
+        for (const row of rows as Record<string, unknown>[]) {
+          const id = tombstoneId(name, ridOf(Array.isArray(path) ? path.map((p) => row[p]) : row[path as string]));
+          if (!graves.has(id)) continue;
+          row.updatedAt = now;
+          await d.tombstones.delete(id);
+        }
+      }
       if (rows.length) await d.table(name).bulkPut(rows);
     }
   });
+  return { skipped };
 }
 
 /** One row per set of every finished workout, oldest first, for the CSV export. */

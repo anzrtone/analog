@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 The Analog contributors
+import { RELEASES_URL } from '@/config';
 import type { AppSettings, LatestRelease } from '@/db/settings';
 import { RELEASES, type Release } from './releases';
 
@@ -45,10 +46,16 @@ export function whatsNewMessage(releases: Release[], max = 4): string {
   return lines.join('\n');
 }
 
-/** GitHub's "latest release" response, reduced to what the dev log shows. Null if it doesn't look like one. */
+const VERSION_TAG = /^v?\d{1,6}(\.\d{1,6}){1,3}(-[\w.]{1,40})?$/i;
+
+/**
+ * GitHub's "latest release" response, reduced to what the dev log shows. Null if it doesn't look like one, or if it
+ * doesn't point at this project's own release pages: this URL becomes a "Get it" button.
+ */
 export function parseLatest(json: unknown): LatestRelease | null {
   const r = json as { tag_name?: unknown; html_url?: unknown; published_at?: unknown; body?: unknown } | null;
   if (!r || typeof r.tag_name !== 'string' || typeof r.html_url !== 'string') return null;
+  if (!VERSION_TAG.test(r.tag_name.trim()) || !r.html_url.startsWith(`${RELEASES_URL}/`)) return null;
   return {
     version: r.tag_name.trim().replace(/^v/i, ''),
     url: r.html_url,

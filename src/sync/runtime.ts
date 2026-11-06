@@ -9,14 +9,14 @@ import { createRelay } from './relay';
 
 export const appSyncDeps = (): SyncDeps => ({ db, platform: platform(), relay: createRelay() });
 
-export const syncNowInApp = () => syncNow(appSyncDeps());
+export const syncNowInApp = (opts: { allowLargeDelete?: boolean } = {}) => syncNow({ ...appSyncDeps(), ...opts });
 
 let loop: ReturnType<typeof startAutoSyncLoop> | null = null;
 
 /** Once at launch. Does nothing for anyone who has not set sync up. */
 export function startSync(): void {
   loop ??= startAutoSyncLoop(
-    syncNowInApp,
+    () => syncNowInApp(),
     () => {
       const s = settings().sync;
       return s.auto && (s.method === 'relay' || s.method === 'folder');

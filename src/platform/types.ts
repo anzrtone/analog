@@ -6,8 +6,8 @@
  * haptics, sharing. The engine and UI never import Capacitor or Tauri directly; they call `platform()`.
  */
 
-/** Buttons on the rest and stopwatch notifications, and the end-of-rest alarm, as the native side recorded them. */
-export type TimerAction = 'minus15' | 'plus15' | 'skip' | 'stop' | 'restOver';
+/** Buttons on the rest and stopwatch notifications (`over15`/`over30` are more rest from the "Rest over" alert), and the end-of-rest alarm, as the native side recorded them. */
+export type TimerAction = 'minus15' | 'plus15' | 'skip' | 'stop' | 'restOver' | 'over15' | 'over30';
 
 export interface NativeTimerAction {
   action: TimerAction;

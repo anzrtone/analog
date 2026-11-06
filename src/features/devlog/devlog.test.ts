@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 The Analog contributors
 import pkg from '../../../package.json';
+import { RELEASES_URL } from '@/config';
 import { DEFAULT_SETTINGS, DEVICE_ONLY_SETTINGS } from '@/db/settings';
 import { checkForUpdate, compareVersions, formatDay, parseLatest, whatsNew, whatsNewMessage, type Get } from './logic';
 import { RELEASES, type Release } from './releases';
@@ -8,7 +9,7 @@ import { RELEASES, type Release } from './releases';
 const URL = 'https://api.github.test/latest';
 const NOW = Date.UTC(2026, 9, 29, 12);
 const on = { ...DEFAULT_SETTINGS, checkUpdates: true };
-const gh = (tag: string) => ({ tag_name: tag, html_url: `https://github.test/r/${tag}`, published_at: '2026-11-02T09:00:00Z', body: '## Changes\n- Faster' });
+const gh = (tag: string) => ({ tag_name: tag, html_url: `${RELEASES_URL}/tag/${tag}`, published_at: '2026-11-02T09:00:00Z', body: '## Changes\n- Faster' });
 
 function server(...answers: ({ status: number; json: unknown } | null)[]) {
   const calls: string[] = [];
@@ -78,7 +79,7 @@ describe('update check', () => {
     const { get } = server({ status: 200, json: gh('v0.2.0') }, { status: 200, json: gh('v0.2.0') });
     const first = await checkForUpdate(on, '0.1.0', URL, get, { now: NOW });
     expect(first.outcome).toBe('newer');
-    expect(first.patch).toEqual({ updateCheckedAt: NOW, latestRelease: { version: '0.2.0', url: 'https://github.test/r/v0.2.0', date: '2026-11-02', notes: '## Changes\n- Faster' } });
+    expect(first.patch).toEqual({ updateCheckedAt: NOW, latestRelease: { version: '0.2.0', url: `${RELEASES_URL}/tag/v0.2.0`, date: '2026-11-02', notes: '## Changes\n- Faster' } });
     expect(first.announce?.version).toBe('0.2.0');
     const again = await checkForUpdate({ ...on, ...first.patch }, '0.1.0', URL, get, { now: NOW, force: true });
     expect(again.outcome).toBe('newer');
@@ -104,7 +105,8 @@ describe('update check', () => {
   test('parses only what it needs from GitHub', () => {
     expect(parseLatest(null)).toBeNull();
     expect(parseLatest({ tag_name: 'v1.0.0' })).toBeNull();
-    expect(parseLatest({ tag_name: '1.0.0', html_url: 'u', body: 'x'.repeat(3000) })).toEqual({ version: '1.0.0', url: 'u', date: null, notes: 'x'.repeat(2000) });
+    const url = `${RELEASES_URL}/tag/1.0.0`;
+    expect(parseLatest({ tag_name: '1.0.0', html_url: url, body: 'x'.repeat(3000) })).toEqual({ version: '1.0.0', url, date: null, notes: 'x'.repeat(2000) });
   });
 
   test('what this device has seen and checked stays out of backups', () => {

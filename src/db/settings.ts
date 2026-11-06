@@ -2,9 +2,10 @@
 // Copyright (c) 2026 The Analog contributors
 import { useSyncExternalStore } from 'react';
 import { liveQuery } from 'dexie';
-import { registerCustomSetTypes, type CustomSetType } from '@/engine/setTypes';
+import { RELEASES_URL } from '@/config';
+import { registerCustomSetTypes, validCustomSetType, type CustomSetType } from '@/engine/setTypes';
 import { DEFAULT_RAMP, type WarmupStep } from '@/engine/math/warmup';
-import type { ThemeName } from '@/theme/tokens';
+import { palettes, type ThemeName } from '@/theme/tokens';
 import type { ClockFormat } from '@/engine/timer/session';
 import type { WeightUnit } from '@/engine/types';
 import { db as userDb, type AnalogDB } from './schema';
@@ -24,6 +25,8 @@ export interface AppSettings {
   haptics: boolean;
   keepAwake: boolean;
   defaultRestMs: number;
+  /** What the rows still to do start from in a freestyle workout: the set you just did, or last session's same row. */
+  nextSetTargets: 'lastSet' | 'lastSession';
   holdCountdown: boolean;
   holdCues: boolean;
   holdHundredths: boolean;
@@ -98,7 +101,7 @@ export interface SyncSettings {
 export const DEFAULT_SYNC: SyncSettings = { method: 'off', code: null, deviceId: null, dir: null, auto: true, lastAt: null, lastError: null, lastSummary: null, lastPushHash: null, lastBlobHash: null };
 
 /** The settings that follow the person from device to device. Volume, notifications, folders and ids stay per device. */
-export const SYNCED_PREFS: (keyof AppSettings)[] = ['unit', 'effort', 'theme', 'clock', 'bodyFigure', 'defaultRestMs', 'holdCountdown', 'holdCues', 'holdHundredths', 'warmupRamp', 'warmupBar', 'maxJumpPct', 'customSetTypes', 'customMeasurements', 'profile'];
+export const SYNCED_PREFS: (keyof AppSettings)[] = ['unit', 'effort', 'theme', 'clock', 'bodyFigure', 'defaultRestMs', 'nextSetTargets', 'holdCountdown', 'holdCues', 'holdHundredths', 'warmupRamp', 'warmupBar', 'maxJumpPct', 'customSetTypes', 'customMeasurements', 'profile'];
 
 export interface LatestRelease {
   version: string;
@@ -117,8 +120,11 @@ export interface Survey {
   answeredAt: number;
 }
 
-/** Device-only settings: never exported, and a restore keeps this device's values. */
-export const DEVICE_ONLY_SETTINGS: string[] = ['installId', 'surveySentAt', 'shareInstall', 'installSentAt', 'lastSeenVersion', 'updateCheckedAt', 'latestRelease', 'autoBackupAt', 'sync'];
+/**
+ * Device-only settings: never exported, and a restore keeps this device's values. The sharing switches belong here so
+ * that restoring an old backup can never turn on something the person turned off: "off" must stay off.
+ */
+export const DEVICE_ONLY_SETTINGS: string[] = ['installId', 'shareSurvey', 'surveySentAt', 'shareInstall', 'installSentAt', 'lastSeenVersion', 'updateCheckedAt', 'latestRelease', 'autoBackupAt', 'sync'];
 
 export const DEFAULT_SETTINGS: AppSettings = {
   unit: 'kg',
@@ -131,6 +137,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   haptics: true,
   keepAwake: true,
   defaultRestMs: 120000,
+  nextSetTargets: 'lastSet',
   holdCountdown: true,
   holdCues: true,
   holdHundredths: false,
@@ -165,10 +172,51 @@ export const DEFAULT_SETTINGS: AppSettings = {
   sync: DEFAULT_SYNC,
 };
 
+const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
+const oneOf = (...allowed: unknown[]) => (v: unknown) => allowed.includes(v);
+const positive = (v: unknown) => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 1e15;
+const shortText = (v: unknown) => typeof v === 'string' && v.length <= 1000;
+const strings = (v: unknown) => Array.isArray(v) && v.length <= 10_000 && v.every(shortText);
+
+/** Settings whose values need more than "the same kind of thing as the default". */
+const SETTING_CHECKS: Partial<Record<keyof AppSettings, (v: unknown) => boolean>> = {
+  unit: oneOf('kg', 'lb'),
+  effort: oneOf('rir', 'rpe'),
+  theme: (v) => v === 'system' || (typeof v === 'string' && Object.hasOwn(palettes, v)),
+  clock: oneOf('12h', '24h'),
+  bodyFigure: oneOf('male', 'female'),
+  nextSetTargets: oneOf('lastSet', 'lastSession'),
+  warmupRamp: (v) => Array.isArray(v) && v.length <= 50 && v.every((s) => isObject(s) && positive(s.pct) && positive(s.reps)),
+  customSetTypes: (v) => Array.isArray(v) && v.length <= 200 && v.every(validCustomSetType),
+  customMeasurements: (v) => Array.isArray(v) && v.length <= 200 && v.every((m) => isObject(m) && shortText(m.id) && shortText(m.label)),
+  hintsDismissed: strings,
+  toursSeen: strings,
+  profile: (v) => isObject(v) && shortText(v.name),
+  survey: (v) => isObject(v) && strings(v.uses) && shortText(v.usesOther) && (v.heardFrom === null || shortText(v.heardFrom)) && shortText(v.heardOther) && positive(v.answeredAt),
+  // A stored release only ever points at this project's own release pages.
+  latestRelease: (v) => isObject(v) && shortText(v.version) && typeof v.url === 'string' && v.url.startsWith(`${RELEASES_URL}/`) && typeof v.notes === 'string',
+  sync: isObject,
+};
+
+/**
+ * Is this a value the app can safely run on? Settings arrive from backups and from other devices, and every screen
+ * reads them from the first frame, so one bad value would otherwise stop the app from opening at all.
+ */
+export function validSetting(key: string, value: unknown): boolean {
+  if (!Object.hasOwn(DEFAULT_SETTINGS, key)) return false;
+  const k = key as keyof AppSettings;
+  const check = SETTING_CHECKS[k];
+  if (check) return value === null ? DEFAULT_SETTINGS[k] === null : check(value);
+  const fallback = DEFAULT_SETTINGS[k];
+  if (fallback === null) return value === null || typeof value === 'string' || positive(value);
+  if (typeof fallback === 'number') return positive(value);
+  return typeof value === typeof fallback;
+}
+
 export async function loadSettings(d: AnalogDB): Promise<AppSettings> {
   const rows = await d.settings.toArray();
   const out: Record<string, unknown> = { ...DEFAULT_SETTINGS };
-  for (const r of rows) if (r.key in DEFAULT_SETTINGS) out[r.key] = r.value;
+  for (const r of rows) if (validSetting(r.key, r.value)) out[r.key] = r.value;
   const loaded = out as unknown as AppSettings;
   loaded.sync = { ...DEFAULT_SYNC, ...loaded.sync };
   registerCustomSetTypes(loaded.customSetTypes);

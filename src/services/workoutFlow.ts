@@ -76,7 +76,8 @@ export async function sessionsFor(d: AnalogDB, exerciseId: string, excludeWorkou
 /** PRs this workout has set so far for one exercise (live, as sets are ticked). */
 export async function livePrs(d: AnalogDB, full: FullWorkout, exerciseId: string, unit: WeightUnit): Promise<PrRecord[]> {
   // Runs on every tick: the collapsed baseline, not every set ever logged.
-  const history = await prBaseline(d, exerciseId, full.workout.id);
+  // A finished workout is compared with what came before it, so editing an old one can't lose its PRs to a later lift.
+  const history = await prBaseline(d, exerciseId, full.workout.id, full.workout.endedAt != null ? full.workout.startedAt : undefined);
   const current = full.exercises.flatMap((e) => e.sets).filter((s) => s.exerciseId === exerciseId && s.completedAt != null).map(toLoggedSet);
   return detectPrs(history, current, unit);
 }

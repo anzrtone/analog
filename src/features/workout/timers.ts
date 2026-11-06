@@ -12,28 +12,52 @@ import { createStore } from '../store';
 
 const native = () => (sampleShown() ? null : platform());
 
-export const rest = createStore<{ rest: RestState | null; next: string }>({ rest: null, next: '' });
+/**
+ * `over` is rest that has run out but hasn't been dealt with: the bar stays, counting up, until Go, more rest, or the
+ * next set is ticked. Nothing is lost if you look at the phone late.
+ */
+export const rest = createStore<{ rest: RestState | null; next: string; over: boolean; weId: string | null }>({ rest: null, next: '', over: false, weId: null });
 
 export const restTimer = {
-  start(durationMs: number, next: string) {
+  /** `weId`: the workout exercise this rest follows, when its own rest length drives it (not a superset's). */
+  start(durationMs: number, next: string, weId: string | null = null) {
     if (durationMs <= 0) return restTimer.skip();
     const r = startRest(Date.now(), durationMs);
-    rest.set({ rest: r, next });
+    rest.set({ rest: r, next, over: false, weId });
     native()?.startRest(r.endsAt, 'Rest', next, settings().restSound);
   },
+  /** Rest for exactly this long from now (typed time, or more rest once it has run out). */
+  restFor(durationMs: number) {
+    const { next, weId } = rest.get();
+    restTimer.start(durationMs, next, weId);
+  },
+  /**
+   * The rest length of the exercise this rest follows was changed mid-rest: the running rest takes the new total,
+   * counted from when it began (40 s in, a new 2:00 leaves 1:20; a new 0:30 ends it).
+   */
+  retimeFor(weId: string, totalMs: number) {
+    const cur = rest.get();
+    if (!cur.rest || cur.over || cur.weId !== weId) return;
+    const endsAt = Math.max(Date.now(), cur.rest.startedAt + totalMs);
+    rest.set({ ...cur, rest: { ...cur.rest, endsAt, plannedMs: totalMs } });
+    native()?.startRest(endsAt, 'Rest', cur.next, settings().restSound);
+  },
+  /** −15 / +15 and the keyboard. Once rest is over there's nothing to take away; more time starts a fresh rest. */
   adjust(deltaMs: number) {
-    const { rest: r, next } = rest.get();
+    const { rest: r, next, over } = rest.get();
     if (!r) return;
-    rest.set({ rest: adjustRest(r, deltaMs, Date.now()), next });
+    if (over) return deltaMs > 0 ? restTimer.restFor(deltaMs) : undefined;
+    rest.set({ ...rest.get(), rest: adjustRest(r, deltaMs, Date.now()), next, over: false });
     native()?.adjustRest(deltaMs);
   },
   skip() {
-    rest.set({ rest: null, next: '' });
+    rest.set({ rest: null, next: '', over: false, weId: null });
     native()?.cancelRest();
   },
-  /** Rest ran out while the app was open. */
+  /** Rest ran out. The bar stays as "rest over" until the lifter moves on. */
   finish() {
-    rest.set({ rest: null, next: '' });
+    const cur = rest.get();
+    if (cur.rest) rest.set({ ...cur, over: true });
   },
 };
 
@@ -68,8 +92,10 @@ export async function applyNativeActions(): Promise<void> {
 
 export function applyNativeAction(a: { action: string; at: number }): void {
   const { rest: r, next } = rest.get();
-  if (a.action === 'plus15' && r) rest.set({ rest: { ...r, endsAt: r.endsAt + 15000 }, next });
-  else if (a.action === 'minus15' && r) rest.set({ rest: { ...r, endsAt: Math.max(a.at, r.endsAt - 15000) }, next });
-  else if (a.action === 'skip' || a.action === 'restOver') rest.set({ rest: null, next: '' });
+  if (a.action === 'plus15' && r) rest.set({ ...rest.get(), rest: { ...r, endsAt: r.endsAt + 15000 }, next, over: false });
+  else if (a.action === 'minus15' && r) rest.set({ ...rest.get(), rest: { ...r, endsAt: Math.max(a.at, r.endsAt - 15000) }, next, over: false });
+  else if ((a.action === 'over15' || a.action === 'over30') && r) rest.set({ ...rest.get(), rest: { startedAt: a.at, endsAt: a.at + (a.action === 'over15' ? 15000 : 30000), plannedMs: a.action === 'over15' ? 15000 : 30000 }, next, over: false });
+  else if (a.action === 'skip') rest.set({ rest: null, next: '', over: false, weId: null });
+  else if (a.action === 'restOver') restTimer.finish();
   else if (a.action === 'stop') holdTimer.stopAt(a.at);
 }

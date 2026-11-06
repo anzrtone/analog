@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 The Analog contributors
 import { Capacitor } from '@capacitor/core';
+import { allowedLink } from '@/config';
 import type { Platform } from './types';
 
 export type { Platform } from './types';
@@ -27,6 +28,8 @@ export function platform(): Platform {
 
 /** Open a link outside the app (system browser). */
 export async function openLink(url: string): Promise<void> {
+  // Checked here for every platform: Android has no opener scope, and the fallback below would skip the desktop one.
+  if (!allowedLink(url)) return;
   try {
     if (current) return await current.openExternal(url);
   } catch {

@@ -69,6 +69,32 @@ async function pipe(data: Uint8Array, stream: CompressionStream | DecompressionS
   return new Uint8Array(await out.arrayBuffer());
 }
 
+/** Far more than any real history, and a gzip bomb stops here: gzip can expand a thousandfold. */
+const MAX_PLAIN_BYTES = 500 * 1024 * 1024;
+
+async function gunzipCapped(data: Uint8Array): Promise<Uint8Array> {
+  const reader = new Blob([data as BlobPart]).stream().pipeThrough(new DecompressionStream('gzip') as unknown as ReadableWritablePair<Uint8Array, Uint8Array>).getReader();
+  const parts: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.length;
+    if (total > MAX_PLAIN_BYTES) {
+      await reader.cancel();
+      throw new Error('too large');
+    }
+    parts.push(value);
+  }
+  const out = new Uint8Array(total);
+  let at = 0;
+  for (const p of parts) {
+    out.set(p, at);
+    at += p.length;
+  }
+  return out;
+}
+
 /** Wire format: [version][12-byte IV][ciphertext]. Version 1 encrypts the JSON; version 2 gzips it first. */
 export async function encryptSnapshot(json: string, key: CryptoKey, opts: { compress?: boolean } = {}): Promise<Uint8Array> {
   const compress = (opts.compress ?? true) && canCompress();
@@ -93,7 +119,11 @@ export async function decryptSnapshot(blob: Uint8Array, key: CryptoKey): Promise
   }
   if (blob[0] === 2) {
     if (!canCompress()) throw unreadable();
-    plain = await pipe(plain, new DecompressionStream('gzip'));
+    try {
+      plain = await gunzipCapped(plain);
+    } catch {
+      throw unreadable();
+    }
   }
   return new TextDecoder().decode(plain);
 }

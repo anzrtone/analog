@@ -29,6 +29,11 @@ export function weekStreak(workouts: WorkoutSummary[], now: number): number {
   return streak;
 }
 
+/** How a month sits on a Monday-first calendar: empty cells before the 1st, and its number of days. `month` is 0-based. */
+export function monthGrid(year: number, month: number): { lead: number; days: number } {
+  return { lead: (new Date(year, month, 1).getDay() + 6) % 7, days: new Date(year, month + 1, 0).getDate() };
+}
+
 /** Days with workouts, as "YYYY-MM-DD" → count, for the calendar. */
 export function calendarDays(workouts: WorkoutSummary[]): Map<string, number> {
   const m = new Map<string, number>();

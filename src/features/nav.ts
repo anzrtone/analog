@@ -12,6 +12,7 @@ export type Route =
   | { name: 'workout'; id: string }
   | { name: 'summary'; id: string }
   | { name: 'workoutDetail'; id: string }
+  | { name: 'workoutEdit'; id: string }
   | { name: 'program'; id: string }
   | { name: 'programShare'; id: string }
   | { name: 'programImport'; data: string }

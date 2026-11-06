@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronDown, ChevronUp, Copy, Plus, Trash2 } from 'lucide-react';
 import { getExercises, type Exercise } from '@/db/exercises';
-import { activeRun, archiveProgram, getProgram, saveProgram, startRun, type ProgramRow, type RunRow } from '@/db/repos';
+import { activeRun, deleteProgram, getProgram, saveProgram, startRun, type ProgramRow, type RunRow } from '@/db/repos';
 import { db, newId } from '@/db/schema';
 import { useSettings } from '@/db/settings';
 import { formatClock, formatWeight, parseWeightInput } from '@/engine/math/units';
@@ -298,7 +298,7 @@ function Builder({ id, initial }: { id: string; initial: Program }) {
                   text: 'Delete',
                   style: 'destructive',
                   onPress: async () => {
-                    await archiveProgram(db, id);
+                    await deleteProgram(db, id);
                     back();
                   },
                 },

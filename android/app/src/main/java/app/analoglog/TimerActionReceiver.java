@@ -6,7 +6,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 
-/** The −15 / +15 / Skip buttons on the rest notification and Stop on the stopwatch. Applied natively, then told to JS. */
+/** The −15 / +15 / Skip buttons on the rest notification, +15 / +30 / Go on "Rest over", and Stop on the stopwatch. Applied natively, then told to JS. */
 public class TimerActionReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context ctx, Intent intent) {
@@ -25,6 +25,14 @@ public class TimerActionReceiver extends BroadcastReceiver {
             case Timers.ACTION_SKIP:
                 Timers.cancelRest(ctx);
                 Timers.recordAction(ctx, "skip", now);
+                break;
+            case Timers.ACTION_OVER15:
+                Timers.restartRest(ctx, 15_000);
+                Timers.recordAction(ctx, "over15", now);
+                break;
+            case Timers.ACTION_OVER30:
+                Timers.restartRest(ctx, 30_000);
+                Timers.recordAction(ctx, "over30", now);
                 break;
             case Timers.ACTION_STOP:
                 Timers.cancelStopwatch(ctx);

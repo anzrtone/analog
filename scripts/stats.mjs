@@ -27,7 +27,25 @@ if (process.argv.includes('--json')) {
   process.exit(0);
 }
 
-const table = (t) => Object.entries(t).sort((a, b) => b[1] - a[1]).map(([k, n]) => `  ${String(n).padStart(5)}  ${k}`).join('\n') || '  (none)';
+// Answers are typed by strangers. The Worker refuses control characters now, but older records may hold some, and they
+// would drive this terminal: clear the screen, fake these numbers, set the clipboard.
+const clean = (s) => String(s).replace(/\p{Cc}/gu, '?');
+
+if (data.budget) {
+  const { limits: l, ...b } = data.budget;
+  const gb = (n) => (n / 1024 ** 3).toFixed(2);
+  console.log(`BUDGET TODAY (UTC ${clean(b.day)})`);
+  console.log(`  stored        ${gb(b.storedBytes)} of ${gb(l.maxStoredBytes)} GB`);
+  console.log(`  new bytes     ${gb(b.newBytes)} of ${gb(l.maxNewBytesPerDay)} GB`);
+  console.log(`  new pairs     ${b.newPairs} of ${l.maxNewPairsPerDay}`);
+  console.log(`  sync writes   ${b.syncWrites} of ${l.maxSyncWritesPerDay}`);
+  console.log(`  record writes ${b.recordWrites} of ${l.maxRecordWritesPerDay}; ${b.records} of ${l.maxRecords} kept`);
+  console.log(`  reads         ${b.reads} of ${l.maxReadsPerDay}`);
+  console.log(`  last full scan ${clean(b.scanDoneDay ?? 'not yet')}\n`);
+}
+if (data.truncated) console.log('(More records than one request can read: the totals below are a sample.)\n');
+
+const table = (t) => Object.entries(t).sort((a, b) => b[1] - a[1]).map(([k, n]) => `  ${String(n).padStart(5)}  ${clean(k)}`).join('\n') || '  (none)';
 console.log(`INSTALLS COUNTED: ${data.installs.total}`);
 console.log(`by platform\n${table(data.installs.byPlatform)}`);
 console.log(`by version\n${table(data.installs.byVersion)}`);
@@ -38,5 +56,5 @@ console.log(`where they heard about it\n${table(data.surveys.heardFrom)}`);
 const other = data.surveys.answers.filter((a) => a.usesOther || a.heardOther);
 if (other.length) {
   console.log('\nin their own words');
-  for (const a of other) console.log(`  ${a.answeredOn}  uses: ${a.usesOther || '-'}  heard: ${a.heardOther || '-'}`);
+  for (const a of other) console.log(`  ${clean(a.answeredOn)}  uses: ${clean(a.usesOther || '-')}  heard: ${clean(a.heardOther || '-')}`);
 }

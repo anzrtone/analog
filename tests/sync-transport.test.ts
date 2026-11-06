@@ -5,13 +5,14 @@ import { loadSettings, saveSettings, DEFAULT_SETTINGS } from '@/db/settings';
 import { testDb } from '@/db/testing';
 import { setRow, workoutExerciseRow, workoutRow } from '@/db/workouts';
 import { decryptSnapshot, deriveKeys, encryptSnapshot, formatSyncCode, generateSyncCode, normalizeSyncCode, sha256Hex, WrongCodeError } from '@/sync/crypto';
-import { mergeSyncFile, saveSyncFile, startAutoSyncLoop, syncNow, type SyncDeps } from '@/sync/index';
+import { mergeSyncFile, saveSyncFile, startAutoSyncLoop, stopAndDeleteFromServer, syncNow, type SyncDeps } from '@/sync/index';
 import { buildSnapshot } from '@/sync/merge';
 import { createRelay, type Fetch } from '@/sync/relay';
 import { dev } from '@/platform/dev';
 import type { Platform, SyncFile } from '@/platform/types';
 // @ts-expect-error plain JavaScript Worker
 import worker from '../worker/index.js';
+import { relayEnv, sizedRequest } from './workerEnv';
 
 const T = 1_700_000_000_000;
 const CODE = 'ABCDEFGHJKMNPQRSTVWX';
@@ -80,32 +81,82 @@ describe('keys and the wire format', () => {
 
 /** A relay backed by the real Worker over a fake bucket, reached through a fake `fetch`. */
 function fakeServer() {
-  const items = new Map<string, { body: Uint8Array; uploaded: Date; customMetadata?: Record<string, string> }>();
-  const bucket = {
-    async get(k: string) {
-      const o = items.get(k);
-      return o ? { ...o, body: new Blob([o.body as BlobPart]).stream() } : null;
-    },
-    async head(k: string) {
-      return items.get(k) ?? null;
-    },
-    async put(k: string, body: Uint8Array, o: { customMetadata?: Record<string, string> }) {
-      items.set(k, { body, uploaded: new Date(), customMetadata: o.customMetadata });
-    },
-    async delete(k: string) {
-      items.delete(k);
-    },
-  };
+  const env = relayEnv();
   const calls: { method: string; url: string }[] = [];
   const fetch: Fetch = async (url, init) => {
     calls.push({ method: init?.method ?? 'GET', url });
-    return worker.fetch(new Request(url, init), { SYNC_BUCKET: bucket }) as Promise<Response>;
+    return worker.fetch(sizedRequest(url, init), env) as Promise<Response>;
   };
-  return { items, calls, relay: createRelay('https://relay.test', fetch) };
+  return { items: env.SYNC_BUCKET.items, calls, relay: createRelay('https://relay.test', fetch) };
 }
 
+describe('stopping and deleting from the server', () => {
+  const blobCount = (items: Map<string, unknown>) => [...items.keys()].filter((k) => /^[0-9a-f]{32}$/.test(k)).length;
+
+  it('removes the blob, forgets the code and keeps every workout on the device', async () => {
+    const server = fakeServer();
+    const a = testDb();
+    await setSync(a, { method: 'relay', code: CODE });
+    await addWorkout(a, 'w1');
+    expect((await syncNow({ db: a, platform: dev, relay: server.relay })).status).toBe('ok');
+    expect(blobCount(server.items)).toBe(1);
+
+    expect(await stopAndDeleteFromServer({ db: a, relay: server.relay })).toEqual({ status: 'ok' });
+    expect(blobCount(server.items)).toBe(0);
+    const sync = (await loadSettings(a)).sync;
+    expect(sync.method).toBe('off');
+    expect(sync.code).toBeNull();
+    expect(await a.workouts.get('w1')).toBeTruthy();
+    expect(server.calls.at(-1)?.method).toBe('DELETE');
+  });
+
+  it('keeps the code and keeps syncing when the server cannot delete, so it can be tried again', async () => {
+    const a = testDb();
+    await setSync(a, { method: 'relay', code: CODE });
+    const relay = createRelay('https://relay.test', async () => new Response(null, { status: 503 }));
+    const r = await stopAndDeleteFromServer({ db: a, relay });
+    expect(r.status).toBe('failed');
+    const sync = (await loadSettings(a)).sync;
+    expect(sync.method).toBe('relay');
+    expect(sync.code).toBe(CODE);
+  });
+
+  it('counts a blob that is already gone as deleted', async () => {
+    const server = fakeServer();
+    const a = testDb();
+    await setSync(a, { method: 'relay', code: CODE });
+    expect(await stopAndDeleteFromServer({ db: a, relay: server.relay })).toEqual({ status: 'ok' });
+    expect((await loadSettings(a)).sync.code).toBeNull();
+  });
+
+  it('is put back by a device still paired, which is why the screen says to do this last', async () => {
+    const server = fakeServer();
+    const a = testDb();
+    const b = testDb();
+    await setSync(a, { method: 'relay', code: CODE });
+    await setSync(b, { method: 'relay', code: CODE });
+    await addWorkout(b, 'w1');
+    await syncNow({ db: a, platform: dev, relay: server.relay });
+    await syncNow({ db: b, platform: dev, relay: server.relay });
+    await stopAndDeleteFromServer({ db: a, relay: server.relay });
+    expect(blobCount(server.items)).toBe(0);
+    expect((await syncNow({ db: b, platform: dev, relay: server.relay })).status).toBe('ok');
+    expect(blobCount(server.items)).toBe(1);
+  });
+
+  it('waits for a sync in flight rather than racing it', async () => {
+    const server = fakeServer();
+    const a = testDb();
+    await setSync(a, { method: 'relay', code: CODE });
+    const sync = syncNow({ db: a, platform: dev, relay: server.relay });
+    expect(await stopAndDeleteFromServer({ db: a, relay: server.relay })).toEqual({ status: 'busy' });
+    await sync;
+    expect((await loadSettings(a)).sync.code).toBe(CODE);
+  });
+});
+
 describe('relay sync', () => {
-  const deps = (db: AnalogDB, relay = fakeServer().relay): SyncDeps => ({ db, platform: dev, relay });
+  const deps =(db: AnalogDB, relay = fakeServer().relay): SyncDeps => ({ db, platform: dev, relay });
 
   it('pulls, merges and pushes: two devices end with each other’s workouts', async () => {
     const server = fakeServer();

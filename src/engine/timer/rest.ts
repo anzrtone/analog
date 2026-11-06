@@ -32,6 +32,11 @@ export function isRestOver(state: RestState, now: number): boolean {
   return now >= state.endsAt;
 }
 
+/** How long past the end of rest it is now (0 while rest is still running). */
+export function overrunMs(state: RestState, now: number): number {
+  return Math.max(0, now - state.endsAt);
+}
+
 /** Whole seconds left for the "last 3 s pulse once per second" cue. */
 export function pulseSecond(state: RestState, now: number): number | null {
   const left = Math.ceil(remainingMs(state, now) / 1000);

@@ -8,6 +8,7 @@ import { completeOnboarding, type WizardResult } from '@/features/onboarding/log
 import { postJson, syncSurvey, type Post } from '@/features/onboarding/survey';
 // @ts-expect-error plain JavaScript Worker
 import worker from '../worker/index.js';
+import { relayEnv, sizedRequest } from './workerEnv';
 
 const ENV = { platform: 'android', appVersion: '0.5.0' };
 const NOW = new Date(2026, 9, 30, 18, 0).getTime();
@@ -92,21 +93,9 @@ describe('install count', () => {
 /** The app's own posts, answered by the real Worker over a fake bucket, then read back through /stats. */
 describe('the app and the Worker, end to end', () => {
   function server() {
-    const items = new Map<string, { uploaded: Date; customMetadata?: Record<string, string> }>();
-    const bucket = {
-      async put(k: string, _b: unknown, o: { customMetadata?: Record<string, string> }) {
-        items.set(k, { uploaded: new Date(), customMetadata: o.customMetadata });
-      },
-      async delete(k: string) {
-        items.delete(k);
-      },
-      async list({ prefix = '' }: { prefix?: string }) {
-        return { objects: [...items].filter(([k]) => k.startsWith(prefix)).map(([key, o]) => ({ key, ...o })), truncated: false };
-      },
-    };
-    const env = { SYNC_BUCKET: bucket, ADMIN_TOKEN: 'secret' };
+    const env = relayEnv({ ADMIN_TOKEN: 'secret' });
     const realFetch = globalThis.fetch;
-    globalThis.fetch = (async (url: string, init: RequestInit) => worker.fetch(new Request(url, init), env)) as typeof fetch;
+    globalThis.fetch = (async (url: string, init: RequestInit) => worker.fetch(sizedRequest(url, init), env)) as typeof fetch;
     const stats = async () => JSON.parse(await (await worker.fetch(new Request('https://relay.test/stats', { headers: { authorization: 'Bearer secret' } }), env)).text());
     return { stats, restore: () => void (globalThis.fetch = realFetch) };
   }

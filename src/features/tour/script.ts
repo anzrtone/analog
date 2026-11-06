@@ -56,7 +56,7 @@ export const TOURS: Record<string, TourScript> = {
       { screen: 'programs', target: 'program-{program}', text: 'There it is: “{program}”. Programs are split into days. Name the first one.', make: 'day' },
       { screen: 'programs', target: 'program-{program}', text: '“{day}” is waiting inside. Tap the program any time to add exercises, sets and how each lift progresses.' },
       { screen: 'history', target: 'nav-history', text: 'History keeps every workout, forever. These are sample workouts for the tour; yours start with your first session.' },
-      { screen: 'history', target: 'history-calendar', text: 'Twelve weeks at a glance: a filled dot is a training day. Missed a week? It’s just a blank page.' },
+      { screen: 'history', target: 'history-calendar', text: 'Your month at a glance: a filled date is a training day. Missed a week? It’s just a blank page.' },
       { screen: 'history', target: 'history-list', text: 'Tap a session to see every set, the PRs it set, and to share it as a card.' },
       { screen: 'stats', target: 'nav-stats', text: 'Stats turns the log into numbers.' },
       { screen: 'stats', target: 'stats-volume', text: 'Hard sets per muscle each week, against the range that usually builds muscle. Comparisons are just info, never a grade.' },
@@ -78,7 +78,7 @@ TOURS.sync = {
     { screen: 'sync', target: 'sync-method', text: 'Three ways. A pairing code is the easiest and works anywhere. A cloud folder uses a Dropbox, OneDrive or Drive you already have. A file is fully by hand: save it here, merge it there.' },
     { screen: 'sync', target: null, text: 'Setup is once per device. On the first one, choose a way and make a code or pick a folder. On the second, enter that same code or pick the same folder.' },
     { screen: 'sync', target: null, text: 'Sync now merges straight away. Sync automatically also does it when Analog opens, every so often, and when you put it away, so the other device sees your latest.' },
-    { screen: 'sync', target: null, text: 'If both devices changed the same thing, the newer edit wins. Deleting something removes it on both. Merging twice never doubles anything. With a code your data is scrambled before it leaves, so even the server can’t read it.' },
+    { screen: 'sync', target: null, text: 'If both devices changed the same thing, the newer edit wins. Deleting something removes it on both. Merging twice never doubles anything. With a code your data is scrambled before it leaves, so even the server can’t read it. A folder or file isn’t scrambled: anyone who can open it can read it.' },
     { screen: 'sync', target: null, chapter: 'sync', text: 'That’s sync. It’s all optional: turn it off any time and your data stays right here.' },
   ],
 };

@@ -26,8 +26,8 @@ function confirmRestore(text: string, done: (msg: string) => void) {
         text: 'Replace',
         style: 'destructive',
         onPress: async () => {
-          await restoreAll(db, check.file);
-          done('Restored.');
+          const { skipped } = await restoreAll(db, check.file);
+          done(skipped ? `Restored. ${skipped} damaged row${skipped === 1 ? ' was' : 's were'} left out.` : 'Restored.');
         },
       },
     ],
@@ -107,8 +107,11 @@ export function BackupScreen() {
           </Pad>
         ) : (
           autos.map((name) => (
-            <RuledRow key={name} label={`Restore the backup from ${day(name)}`} onClick={() => p.readBackup(name).then((t) => confirmRestore(t, setMsg), fail)}>
-              <span className="t-num-m flex-1">{day(name)}</span>
+            <RuledRow key={name} label={`Restore the backup from ${day(name)}${name.includes('before-merge') ? ', made before a sync removed rows' : ''}`} onClick={() => p.readBackup(name).then((t) => confirmRestore(t, setMsg), fail)}>
+              <span className="t-num-m flex-1">
+                {day(name)}
+                {name.includes('before-merge') ? ' · before a sync' : ''}
+              </span>
               <span className="text-pencil">Restore</span>
             </RuledRow>
           ))

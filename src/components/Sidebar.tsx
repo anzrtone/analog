@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 The Analog contributors
-import { memo, useEffect, useState, type ComponentType } from 'react';
-import { ChartLine, Database, Dumbbell, History, Info, ListChecks, NotebookPen, Settings, Upload, Weight, Wrench } from 'lucide-react';
+import { memo, useEffect, useState } from 'react';
 import { activeRun, type RunRow } from '@/db/repos';
 import { activeWorkout, type Workout } from '@/db/workouts';
 import { formatClock } from '@/engine/math/units';
 import { rirForWeek } from '@/engine/meso';
 import { metaLine } from '@/engine/programs/resolve';
 import { useData } from '@/features/data';
-import { navigate, useNav, type Route } from '@/features/nav';
+import { navigate, useNav } from '@/features/nav';
+import { NAV_ITEMS } from '@/features/navItems';
 import { useSpread } from '@/features/responsive';
 import { startEmptyWorkout, startNextProgramDay } from '@/features/workout/actions';
 import { rest } from '@/features/workout/timers';
@@ -17,32 +17,7 @@ import { Wordmark } from './Brand';
 import { PlateRing } from './PlateRing';
 import { cx } from './ui';
 
-type Icon = ComponentType<{ size?: number | string; strokeWidth?: number | string }>;
-interface NavItem {
-  label: string;
-  to: Route;
-  icon: Icon;
-  match: (r: Route['name'], tab: string) => boolean;
-  hint?: string;
-  tour?: string;
-}
-
-const NAV: NavItem[] = [
-  { label: 'Today', to: { name: 'today' }, icon: NotebookPen, match: (r, t) => t === 'today' && r !== 'exercises' && r !== 'exercise' && r !== 'exerciseEdit', hint: 'Alt 1' },
-  { label: 'History', to: { name: 'history' }, icon: History, match: (_, t) => t === 'history', hint: 'Alt 2', tour: 'nav-history' },
-  { label: 'Programs', to: { name: 'programs' }, icon: ListChecks, match: (_, t) => t === 'programs', hint: 'Alt 3', tour: 'nav-programs' },
-  { label: 'Stats', to: { name: 'stats' }, icon: ChartLine, match: (_, t) => t === 'stats', hint: 'Alt 4', tour: 'nav-stats' },
-  { label: 'Exercises', to: { name: 'exercises' }, icon: Dumbbell, match: (r) => r === 'exercises' || r === 'exercise' || r === 'exerciseEdit', hint: 'Alt 5' },
-  { label: 'Gyms and plates', to: { name: 'gyms' }, icon: Weight, match: (r) => r === 'gyms' || r === 'gym' },
-];
-const NAV2: NavItem[] = [
-  { label: 'Import', to: { name: 'import' }, icon: Upload, match: (r) => r === 'import' },
-  { label: 'Backup and export', to: { name: 'backup' }, icon: Database, match: (r) => r === 'backup' },
-  { label: 'Settings', to: { name: 'settings' }, icon: Settings, match: (r) => r === 'settings' },
-  { label: 'About', to: { name: 'about' }, icon: Info, match: (r) => r === 'about' || r === 'devlog' || r === 'kitchen' },
-  // Development builds only.
-  ...(__DEV_BUILD__ ? [{ label: 'Admin console', to: { name: 'admin' } as Route, icon: Wrench as Icon, match: (r: Route['name']) => r === 'admin' }] : []),
-];
+type NavItem = (typeof NAV_ITEMS)[number];
 
 // Memoised: a page change re-renders only the items whose highlight moves.
 const Item = memo(function Item({ item, active, compact }: { item: NavItem; active: boolean; compact: boolean }) {
@@ -50,7 +25,7 @@ const Item = memo(function Item({ item, active, compact }: { item: NavItem; acti
   return (
     <button
       type="button"
-      onClick={() => navigate(item.to, { root: true })}
+      onClick={() => navigate({ name: item.id }, { root: true })}
       aria-label={item.label}
       aria-current={active ? 'page' : undefined}
       data-tour={item.tour}
@@ -79,14 +54,13 @@ function LiveClock({ since }: { since: number }) {
  * Plate colours only where they mean something: blue for the program, yellow for a running rest.
  */
 export function Sidebar() {
-  const { route, tab } = useNav();
+  const { tab } = useNav();
   const active = useData((d) => activeWorkout(d), [], null as Workout | null);
   const run = useData((d) => activeRun(d), [], null as RunRow | null);
   const resting = rest.use((r) => r.rest);
   const { spine } = useSpread();
   const block = run ? run.program.blocks[run.state.blockIndex] : undefined;
   const day = block?.days[run!.state.dayIndex];
-  const isActive = (n: NavItem) => n.match(route.name, tab);
 
   if (spine === 'icons') {
     // Narrower windows: the spine folds to icons so the page keeps its width.
@@ -100,8 +74,8 @@ export function Sidebar() {
             <PlateRing color={resting ? 'yellow' : 'ink'} state="progress" progress={0.6} size={22} />
           </button>
         ) : null}
-        {[...NAV, ...NAV2].map((n) => (
-          <Item key={n.label} item={n} active={isActive(n)} compact />
+        {NAV_ITEMS.map((n) => (
+          <Item key={n.id} item={n} active={tab === n.id} compact />
         ))}
       </nav>
     );
@@ -138,14 +112,8 @@ export function Sidebar() {
       )}
 
       <div className="flex flex-col gap-0.5">
-        {NAV.map((n) => (
-          <Item key={n.label} item={n} active={isActive(n)} compact={false} />
-        ))}
-      </div>
-      <div className="mx-2 h-px bg-rule" />
-      <div className="flex flex-col gap-0.5">
-        {NAV2.map((n) => (
-          <Item key={n.label} item={n} active={isActive(n)} compact={false} />
+        {NAV_ITEMS.map((n) => (
+          <Item key={n.id} item={n} active={tab === n.id} compact={false} />
         ))}
       </div>
 

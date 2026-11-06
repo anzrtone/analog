@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 The Analog contributors
-import { useEffect, useRef, useState } from 'react';
-import { activeRun, endRun, listPrograms, saveProgram, startRun, type ProgramRow, type RunRow } from '@/db/repos';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { activeRun, deleteProgram, endRun, listPrograms, saveProgram, startRun, type ProgramRow, type RunRow } from '@/db/repos';
 import { db } from '@/db/schema';
 import { rirForWeek } from '@/engine/meso';
 import { decodeProgram } from '@/engine/programs/share';
@@ -11,6 +11,7 @@ import { useData } from '@/features/data';
 import { navigate, replace } from '@/features/nav';
 import { importSharedProgram } from '@/features/programs';
 import { ask } from '@/components/Dialog';
+import { SwipeRow } from '@/components/SwipeRow';
 import { EmptyState, MarginNote, Pad, RuledRow, Screen, Section } from '@/components/ui';
 
 export function ProgramsScreen() {
@@ -25,9 +26,8 @@ export function ProgramsScreen() {
     const r = decodeProgram(link);
     if (!r.ok) return setLinkError(r.error);
     setLinkError(null);
-    const id = await importSharedProgram(db, r.payload);
     setLink('');
-    navigate({ name: 'program', id });
+    navigate({ name: 'programImport', data: link });
   };
 
   return (
@@ -64,30 +64,49 @@ export function ProgramsScreen() {
           <EmptyState line="No programs yet. Start from a template or build your own." />
         ) : (
           programs.map((p) => (
-            <div key={p.id} className="ruled-row" data-tour={`program-${p.id}`}>
-              <button type="button" className="flex min-h-row min-w-0 flex-1 flex-col justify-center text-left" onClick={() => navigate({ name: 'program', id: p.id })}>
-                <span>{p.name}</span>
-                <span className="t-hint">
-                  {p.data.blocks.map((b) => `${b.weeks}${b.deloadWeek ? '+1' : ''} wk${b.adaptive ? ', adaptive' : ''}`).join(' · ')} · {p.data.blocks[0]?.days.length ?? 0} days
-                </span>
-              </button>
-              {run?.programId === p.id ? (
-                <span className="text-blue-text">running</span>
-              ) : (
-                <button
-                  type="button"
-                  className="btn-secondary btn-compact"
-                  onClick={() => {
-                    void startRun(db, p.id);
-                    navigate({ name: 'today' });
-                  }}
-                >
-                  Start
+            <SwipeRow
+              key={p.id}
+              onSwipe={({ keep, remove }) =>
+                ask(
+                  `Delete ${p.name}?`,
+                  run?.programId === p.id ? 'It is running, so this ends it too. Workouts you logged with it stay in your history.' : 'Workouts you logged with it stay in your history.',
+                  [
+                    { text: 'Keep', style: 'cancel', onPress: keep },
+                    { text: 'Delete', style: 'destructive', onPress: () => remove(() => void deleteProgram(db, p.id)) },
+                  ],
+                )
+              }
+            >
+              <div className="ruled-row" data-tour={`program-${p.id}`}>
+                <button type="button" className="flex min-h-row min-w-0 flex-1 flex-col justify-center text-left" onClick={() => navigate({ name: 'program', id: p.id })}>
+                  <span>{p.name}</span>
+                  <span className="t-hint">
+                    {p.data.blocks.map((b) => `${b.weeks}${b.deloadWeek ? '+1' : ''} wk${b.adaptive ? ', adaptive' : ''}`).join(' · ')} · {p.data.blocks[0]?.days.length ?? 0} days
+                  </span>
                 </button>
-              )}
-            </div>
+                {run?.programId === p.id ? (
+                  <span className="text-blue-text">running</span>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn-secondary btn-compact"
+                    onClick={() => {
+                      void startRun(db, p.id);
+                      navigate({ name: 'today' });
+                    }}
+                  >
+                    Start
+                  </button>
+                )}
+              </div>
+            </SwipeRow>
           ))
         )}
+        {programs.length ? (
+          <Pad className="pt-2">
+            <MarginNote>Swipe a program left to delete it.</MarginNote>
+          </Pad>
+        ) : null}
         <Pad className="pt-3" tour="programs-build">
           <button type="button" className={`${programs.length ? 'btn-secondary' : 'btn-primary'} w-full`} onClick={() => navigate({ name: 'program', id: 'new' })}>
             Build a program
@@ -133,27 +152,49 @@ export function ProgramsScreen() {
   );
 }
 
-/** One import per link, even when an effect runs twice. */
-const imports = new Map<string, Promise<string>>();
-
-/** Deep link target: analog://program?d=… opens the shared program as a new copy, once. */
+/**
+ * Target of a shared link, opened from anywhere: any web page or app can send someone here. So it only shows what the
+ * link holds. Nothing is saved until the person says so.
+ */
 export function ProgramImportScreen({ data }: { data: string }) {
+  const r = useMemo(() => decodeProgram(data), [data]);
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
-    let done = false;
-    const r = decodeProgram(data);
-    if (!r.ok) return setError(r.error);
-    let once = imports.get(data);
-    if (!once) imports.set(data, (once = importSharedProgram(db, r.payload)));
-    void once.then((id) => !done && replace({ name: 'program', id }));
-    return () => {
-      done = true;
-    };
-  }, [data]);
+  const [busy, setBusy] = useState(false);
+  if (!r.ok || error) {
+    return (
+      <Screen title="Shared program" backButton>
+        <Pad>
+          <p>{error ?? (r.ok ? '' : r.error)}</p>
+        </Pad>
+      </Screen>
+    );
+  }
+  const { program, exercises } = r.payload;
+  const days = program.blocks.flatMap((b) => b.days);
+  const slots = days.reduce((n, d) => n + d.slots.length, 0);
+  const add = async () => {
+    setBusy(true);
+    try {
+      replace({ name: 'program', id: await importSharedProgram(db, r.payload) });
+    } catch {
+      setError('That program couldn’t be added. Ask for it to be shared again.');
+    }
+  };
   return (
     <Screen title="Shared program" backButton>
-      <Pad>
-        <p>{error ?? 'Opening…'}</p>
+      <Pad className="flex flex-col gap-3">
+        <h2 className="t-title-l break-words">{program.name || 'Untitled program'}</h2>
+        <p className="text-ink2">
+          {days.length} {days.length === 1 ? 'day' : 'days'}, {slots} {slots === 1 ? 'exercise' : 'exercises'}.
+          {exercises.length ? ` Adds ${exercises.length} custom ${exercises.length === 1 ? 'exercise' : 'exercises'}: ${exercises.slice(0, 8).map((e) => e.name).join(', ')}${exercises.length > 8 ? '…' : ''}.` : ''}
+        </p>
+        <MarginNote>Someone shared this with you. It’s only added if you say so, as a new copy that changes nothing you already have.</MarginNote>
+        <button type="button" className="btn-primary" disabled={busy} onClick={() => void add()}>
+          Add this program
+        </button>
+        <button type="button" className="btn-ghost" disabled={busy} onClick={() => replace({ name: 'programs' })}>
+          Don’t add it
+        </button>
       </Pad>
     </Screen>
   );

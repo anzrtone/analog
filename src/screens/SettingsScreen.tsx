@@ -4,7 +4,6 @@ import { SupportButton } from '@/components/SupportButton';
 import { useEffect, useState } from 'react';
 import { INSTALL_URL, SURVEY_URL } from '@/config';
 import { patchSettings, useSettings, type AppSettings } from '@/db/settings';
-import { formatClock } from '@/engine/math/units';
 import { WARMUP_PRESETS } from '@/engine/math/warmup';
 import { navigate } from '@/features/nav';
 import { openOnboarding, setCounting, setSharing } from '@/features/onboarding/store';
@@ -12,6 +11,7 @@ import { startTour } from '@/features/tour/store';
 import { platform } from '@/platform';
 import { palettes, type Palette, type ThemeName } from '@/theme/tokens';
 import { Check } from 'lucide-react';
+import { RestPicker } from '@/components/RestPicker';
 import { ChoiceRow, cx, Field, MarginNote, Pad, Screen, Section, Segmented, ToggleRow } from '@/components/ui';
 
 const THEMES: { value: ThemeName | 'system'; label: string; note: string }[] = [
@@ -142,7 +142,7 @@ export function SettingsScreen() {
 
       <Section title="REST TIMER">
         <ChoiceRow label="Default rest">
-          <Segmented label="Default rest" value={String(s.defaultRestMs)} onChange={(v) => set('defaultRestMs', Number(v))} options={[60000, 90000, 120000, 180000].map((ms) => ({ value: String(ms), label: formatClock(ms) }))} />
+          <RestPicker label="Default rest" valueMs={s.defaultRestMs} presetsMs={[60000, 90000, 120000, 180000]} onChange={(ms) => set('defaultRestMs', ms)} />
         </ChoiceRow>
         <ToggleRow label="Rest-over sound" checked={s.restSound} onChange={(v) => set('restSound', v)} />
         <ToggleRow label="Haptics" checked={s.haptics} onChange={(v) => set('haptics', v)} />
@@ -185,6 +185,19 @@ export function SettingsScreen() {
             options={PRESET_KEYS.map((k) => ({ value: k, label: WARMUP_PRESETS[k].label }))}
           />
         </ChoiceRow>
+      </Section>
+
+      <Section title="NEXT SETS">
+        <ChoiceRow label="Targets for the sets still to do">
+          <Segmented label="Next set targets" value={s.nextSetTargets} onChange={(v) => set('nextSetTargets', v)} options={[{ value: 'lastSet', label: 'My last set' }, { value: 'lastSession', label: 'Last session' }]} />
+        </ChoiceRow>
+        <Pad className="pb-2">
+          <MarginNote>
+            {s.nextSetTargets === 'lastSet'
+              ? 'In a workout you build yourself, the rows below start from the set you just ticked: same weight and reps, a drop set 20% lighter, a back-off 12% lighter than a top set. Anything you typed stays. Program days keep their plan.'
+              : 'Each row keeps what the same row was last session until you change it.'}
+          </MarginNote>
+        </Pad>
       </Section>
 
       <Section title="TIMED HOLDS (AMTAP)">

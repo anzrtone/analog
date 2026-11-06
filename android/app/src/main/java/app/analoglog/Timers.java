@@ -48,6 +48,8 @@ final class Timers {
     static final String ACTION_MINUS = "app.analoglog.REST_MINUS15";
     static final String ACTION_PLUS = "app.analoglog.REST_PLUS15";
     static final String ACTION_SKIP = "app.analoglog.REST_SKIP";
+    static final String ACTION_OVER15 = "app.analoglog.REST_OVER_PLUS15";
+    static final String ACTION_OVER30 = "app.analoglog.REST_OVER_PLUS30";
     static final String ACTION_STOP = "app.analoglog.STOPWATCH_STOP";
     static final String ACTION_ALARM = "app.analoglog.REST_ALARM";
 
@@ -160,6 +162,15 @@ final class Timers {
         scheduleAlarm(ctx, endsAt);
     }
 
+    /** "Rest over" alert: more rest counted from now. The title, next-set text and sound choice are still stored. */
+    static void restartRest(Context ctx, long ms) {
+        long endsAt = System.currentTimeMillis() + ms;
+        prefs(ctx).edit().putLong("endsAt", endsAt).apply();
+        NotificationManagerCompat.from(ctx).cancel(ID_DONE);
+        postRest(ctx);
+        scheduleAlarm(ctx, endsAt);
+    }
+
     static void cancelRest(Context ctx) {
         prefs(ctx).edit().putLong("endsAt", 0L).apply();
         ctx.getSystemService(AlarmManager.class).cancel(broadcast(ctx, ACTION_ALARM, RestAlarmReceiver.class, 10));
@@ -184,7 +195,10 @@ final class Timers {
         }
     }
 
-    /** Called by the alarm: swap the countdown for a "Rest over" alert with the bell and two pulses. */
+    /**
+     * Called by the alarm: swap the countdown for a "Rest over" alert with the bell and two pulses. It stays until
+     * Go, +15 or +30 is tapped (or half an hour passes), so a late look at the phone still has something to act on.
+     */
     static void restOver(Context ctx) {
         ensureChannels(ctx);
         SharedPreferences p = prefs(ctx);
@@ -195,12 +209,15 @@ final class Timers {
                 .setContentTitle("Rest over")
                 .setContentText(p.getString("next", ""))
                 .setAutoCancel(true)
-                .setTimeoutAfter(60_000)
+                .setTimeoutAfter(30 * 60_000)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setVibrate(TWO_PULSES)
                 .setCategory(NotificationCompat.CATEGORY_REMINDER)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setContentIntent(openApp(ctx))
+                .addAction(0, "+15", broadcast(ctx, ACTION_OVER15, TimerActionReceiver.class, 5))
+                .addAction(0, "+30", broadcast(ctx, ACTION_OVER30, TimerActionReceiver.class, 6))
+                .addAction(0, "Go", broadcast(ctx, ACTION_SKIP, TimerActionReceiver.class, 3))
                 .build();
         notify(ctx, ID_DONE, n);
         p.edit().putLong("endsAt", 0L).apply();

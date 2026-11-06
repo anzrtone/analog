@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 The Analog contributors
 import { memo, useEffect, useRef } from 'react';
-import { ChartLine, Dumbbell, History, ListChecks, Menu, NotebookPen, Weight } from 'lucide-react';
 import { useSettings } from '@/db/settings';
-import { isTab, navigate, useNav, type Route, type Tab } from '@/features/nav';
+import { isTab, navigate, useNav, type Route } from '@/features/nav';
+import { NAV_ITEMS } from '@/features/navItems';
 import { useWide } from '@/features/responsive';
 import { useGlobalShortcuts } from '@/features/shortcuts';
 import { closeTopOverlay, cx } from '@/components/ui';
@@ -31,18 +31,9 @@ import { ShareScreen } from '@/screens/ShareScreen';
 import { StatsScreen } from '@/screens/StatsScreen';
 import { SummaryScreen } from '@/screens/SummaryScreen';
 import { TodayScreen } from '@/screens/TodayScreen';
+import { WorkoutEditScreen } from '@/screens/WorkoutEditScreen';
 import { WorkoutScreen } from '@/screens/WorkoutScreen';
 import { palettes, type ThemeName } from '@/theme/tokens';
-
-const TABS: Array<{ id: Tab; label: string; icon: typeof NotebookPen; tour?: string }> = [
-  { id: 'today', label: 'Log', icon: NotebookPen },
-  { id: 'history', label: 'History', icon: History, tour: 'nav-history' },
-  { id: 'programs', label: 'Programs', icon: ListChecks, tour: 'nav-programs' },
-  { id: 'stats', label: 'Stats', icon: ChartLine, tour: 'nav-stats' },
-  { id: 'exercises', label: 'Exercises', icon: Dumbbell },
-  { id: 'gyms', label: 'My Gyms', icon: Weight },
-  { id: 'more', label: 'More', icon: Menu },
-];
 
 export function App() {
   const { route, stack, tab } = useNav();
@@ -66,7 +57,7 @@ export function App() {
 
       {!tabs ? null : (
         <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-rule bg-paper safe-pb" aria-label="Pages">
-          {TABS.map((t) => (
+          {NAV_ITEMS.map((t) => (
             <button key={t.id} type="button" data-tour={t.tour} aria-current={tab === t.id ? 'page' : undefined} onClick={() => navigate({ name: t.id })} className={cx('flex min-h-[62px] min-w-0 flex-1 flex-col items-center justify-center gap-1 px-0 text-[11px] font-medium leading-4 tracking-[-0.025em]', tab === t.id ? 'text-ink' : 'text-pencil')}>
               <t.icon size={21} strokeWidth={1.75} />
               <span className="max-w-full truncate">{t.label}</span>
@@ -99,6 +90,8 @@ const CurrentScreen = memo(function CurrentScreen({ route }: { route: Route }) {
       return <HistoryScreen />;
     case 'workoutDetail':
       return <WorkoutDetailView key={route.id} id={route.id} page />;
+    case 'workoutEdit':
+      return <WorkoutEditScreen key={route.id} id={route.id} />;
     case 'programs':
       return <ProgramsScreen />;
     case 'program':

@@ -1,0 +1,10 @@
+# Proposes updates to the commit SHAs pinned in the workflows. They are only pull requests: nothing merges itself.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ['*']

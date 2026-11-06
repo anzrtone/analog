@@ -8,11 +8,53 @@ compatibility_date = "2026-01-01"
 binding = "SYNC_BUCKET"
 bucket_name = "analog-sync"
 
-# 20 writes a minute per IP. Optional: the Worker skips the check when this is not bound.
-[[unsafe.bindings]]
+# The spending ledger (budget.js). Every billable write asks it first; the Worker refuses writes without it.
+[[durable_objects.bindings]]
+name = "BUDGET"
+class_name = "Budget"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Budget"]
+
+# Rate limits, per network (an IPv6 /64 or an IPv4 address). Required: the Worker refuses requests without them.
+# Each is approximate and counted per Cloudflare location; the ledger is what holds globally.
+[[ratelimits]]
 name = "SYNC_LIMITER"
-type = "ratelimit"
 namespace_id = "1001"
 simple = { limit = 20, period = 60 }
 
-# Also add an R2 lifecycle rule that expires objects after 60 days (dashboard: R2 > analog-sync > Settings).
+[[ratelimits]]
+name = "READ_LIMITER"
+namespace_id = "1002"
+simple = { limit = 120, period = 60 }
+
+# One pairing code's writes, whatever address they come from.
+[[ratelimits]]
+name = "PAIR_LIMITER"
+namespace_id = "1003"
+simple = { limit = 6, period = 60 }
+
+# /stats guesses.
+[[ratelimits]]
+name = "ADMIN_LIMITER"
+namespace_id = "1004"
+simple = { limit = 5, period = 60 }
+
+# Everything from one IPv6 /48, the size a free tunnel hands out.
+[[ratelimits]]
+name = "WIDE_LIMITER"
+namespace_id = "1005"
+simple = { limit = 300, period = 60 }
+
+# Deletes expired blobs and corrects the ledger, one page of the bucket per run. Once a day's walk is done the rest of
+# that day's runs stop before touching R2.
+[triggers]
+crons = ["*/15 * * * *"]
+
+# To change a budget without touching code, for example when real use nears a cap:
+# [vars]
+# LIMITS = '{"maxNewPairsPerDay": 2000}'
+# Defaults and the reasoning are in limits.js.
+#
+# Do NOT add a bucket-wide R2 lifecycle rule: it would also delete the survey and install records.

@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Android 12+: what goes into Google's device backup and phone-to-phone transfer.
      The automatic daily backups only (files/backups, written by the app as whole, consistent JSON files), not the
-     WebView's live IndexedDB, which could be copied mid-write. After a restore, More → Backup lists them. -->
+     WebView's live IndexedDB, which could be copied mid-write. After a restore, More → Backup lists them.
+     Cloud backup only runs when Android can encrypt it on the device first, which needs a screen lock. -->
 <data-extraction-rules>
-  <cloud-backup>
+  <cloud-backup disableIfNoEncryptionCapabilities="true">
     <include domain="file" path="backups" />
     <include domain="sharedpref" path="." />
   </cloud-backup>

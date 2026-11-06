@@ -203,8 +203,52 @@ pub fn sync_write_file(dir: String, file_name: String, contents: String) -> Resu
     write_atomic(&dir.join(file_name), contents.as_bytes())
 }
 
+/// Only a real folder named `Analog Sync`, judged after following links. `open_path` launches whatever it is given, so
+/// anything else, such as an executable, is refused. Windows ignores case, so a folder made as `analog sync` still counts.
+fn is_sync_folder(dir: &str) -> bool {
+    fs::canonicalize(dir)
+        .map(|p| p.is_dir() && p.file_name().and_then(|n| n.to_str()).is_some_and(|n| n.eq_ignore_ascii_case(SYNC_FOLDER)))
+        .unwrap_or(false)
+}
+
 #[tauri::command]
 pub fn sync_reveal_folder(app: AppHandle, dir: String) -> Result<(), String> {
     use tauri_plugin_opener::OpenerExt;
+    if !is_sync_folder(&dir) {
+        return Err("not a sync folder".into());
+    }
     app.opener().open_path(dir, None::<&str>).map_err(err)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reveals_only_a_real_sync_folder() {
+        let root = std::env::temp_dir().join(format!("analog-reveal-test-{}", std::process::id()));
+        let good = root.join(SYNC_FOLDER);
+        let other = root.join("Windows");
+        fs::create_dir_all(&good).unwrap();
+        fs::create_dir_all(&other).unwrap();
+        let program = root.join("Analog Sync.exe");
+        fs::write(&program, b"not a folder").unwrap();
+        // A file wearing the exact folder name, not just a similar one.
+        let decoy_parent = root.join("decoy");
+        fs::create_dir_all(&decoy_parent).unwrap();
+        let decoy = decoy_parent.join(SYNC_FOLDER);
+        fs::write(&decoy, b"not a folder").unwrap();
+
+        let text = |p: &Path| p.to_string_lossy().into_owned();
+        assert!(is_sync_folder(&text(&good)));
+        assert!(is_sync_folder(&text(&root.join("analog sync"))) == cfg!(windows));
+        assert!(!is_sync_folder(&text(&other)));
+        assert!(!is_sync_folder(&text(&program)));
+        assert!(!is_sync_folder(&text(&decoy)));
+        assert!(!is_sync_folder(&text(&root.join("missing").join(SYNC_FOLDER))));
+        // Walking out of the folder is judged by where it ends up.
+        assert!(!is_sync_folder(&text(&good.join("..").join("Windows"))));
+
+        fs::remove_dir_all(&root).unwrap();
+    }
 }

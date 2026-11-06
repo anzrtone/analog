@@ -134,6 +134,18 @@ export async function archiveProgram(d: AnalogDB, id: string): Promise<void> {
   await d.programs.update(id, { archived: true });
 }
 
+/**
+ * Delete a program from the list. Workouts logged with it stay, and so does the program's own history; a program
+ * that is running first has its run ended (the run keeps its own copy, so nothing already logged changes).
+ */
+export async function deleteProgram(d: AnalogDB, id: string, now = Date.now()): Promise<void> {
+  await d.transaction('rw', d.programs, d.programRuns, async () => {
+    const run = await d.programRuns.filter((r) => r.active && r.programId === id).first();
+    if (run) await d.programRuns.update(run.id, { active: false, endedAt: now });
+    await d.programs.update(id, { archived: true });
+  });
+}
+
 /** Start a program. Restarting seeds the new run from the last run's ending loads. */
 export async function startRun(d: AnalogDB, programId: string, now = Date.now()): Promise<string> {
   const id = newId();

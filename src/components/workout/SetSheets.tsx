@@ -15,6 +15,8 @@ import { holdTimer, stopwatch } from '@/features/workout/timers';
 import { ringVar, type RingColor } from '@/theme/tokens';
 import { Glyph } from '../Glyph';
 import { PlateRing, SetTypeRing } from '../PlateRing';
+import { NumberSheet, TimeEntrySheet } from '../NumberSheet';
+import type { SetField } from '../SetRow';
 import { ChoiceRow, cx, Field, Pad, RuledRow, Segmented, Sheet } from '../ui';
 
 const save = (id: string, p: SetPatch) => void updateSet(editDb(), id, p);
@@ -243,11 +245,17 @@ export function SetDetailSheet({ set, unit, onClose }: { set: WorkoutSet; unit: 
 /**
  * AMTAP / timed hold. Start → optional 3-2-1 → big stopwatch counts up → tap anywhere to stop.
  * Cues at the target and at your best ("PR pace"). Mirrored on the lock screen with a Stop button.
+ * The time can also be typed: instead of running the clock, or to correct it after stopping (a late tap, a clock
+ * kept on a watch), so a slip never means doing the set again.
+ * While the clock runs the sheet can't be swiped away: only Stop or Cancel end it, so a stray drag can't leave
+ * the lock-screen stopwatch running with nowhere to save.
  */
 export function StopwatchSheet({ set, title, lastMs, bestMs, onClose }: { set: WorkoutSet; title: string; lastMs: number | null; bestMs: number | null; onClose: (timeMs: number | null) => void }) {
   const s = useSettings();
   const { sw, setId } = stopwatch.use();
   const [now, setNow] = useState(() => Date.now());
+  const [typing, setTyping] = useState<'enter' | 'edit' | null>(null);
+  const [typedMs, setTypedMs] = useState<number | null>(null);
   const prevElapsed = useRef(0);
   const target = set.targetTimeMs ?? null;
   const mine = setId === set.id;
@@ -275,9 +283,16 @@ export function StopwatchSheet({ set, title, lastMs, bestMs, onClose }: { set: W
   const stopped = mine && sw.phase === 'stopped';
   const running = mine && (sw.phase === 'running' || sw.phase === 'countdown');
   const line = targetLine(lastMs, bestMs, target);
+  const finalMs = stopped ? (typedMs ?? elapsed) : elapsed;
+
+  const finish = (ms: number) => {
+    holdTimer.reset();
+    prevElapsed.current = 0;
+    onClose(ms);
+  };
 
   return (
-    <Sheet open onClose={() => onClose(null)} title={title}>
+    <Sheet open onClose={() => (running ? undefined : onClose(null))} title={title}>
       <button
         type="button"
         onClick={() => (running ? holdTimer.stopAt(Date.now()) : !stopped ? holdTimer.start(set.id, s.holdCountdown, title, line) : undefined)}
@@ -286,22 +301,23 @@ export function StopwatchSheet({ set, title, lastMs, bestMs, onClose }: { set: W
       >
         <span className="t-meta text-pencil">{line || 'Hold until you can’t'}</span>
         <span className="t-display text-[72px] leading-[80px]" aria-live="polite">
-          {cd != null ? String(cd) : formatClock(elapsed, s.holdHundredths)}
+          {cd != null ? String(cd) : formatClock(stopped ? finalMs : elapsed, s.holdHundredths && typedMs == null)}
         </span>
-        <span className="text-ink2">{running ? 'Tap anywhere to stop' : stopped ? (bestMs != null && elapsed > bestMs ? 'Longer than your best.' : 'Logged.') : 'Tap to start'}</span>
+        <span className="text-ink2">{running ? 'Tap anywhere to stop' : stopped ? (bestMs != null && finalMs > bestMs ? 'Longer than your best.' : typedMs != null ? 'Time edited.' : 'Stopped.') : 'Tap to start'}</span>
       </button>
       <Pad className="flex flex-col gap-2 py-3">
         {stopped ? (
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={() => {
-              holdTimer.reset();
-              prevElapsed.current = 0;
-              onClose(elapsed);
-            }}
-          >
-            {`Save ${formatClock(elapsed)}`}
+          <>
+            <button type="button" className="btn-primary" onClick={() => finish(finalMs)}>
+              {`Save ${formatClock(finalMs)}`}
+            </button>
+            <button type="button" className="btn-secondary" onClick={() => setTyping('edit')}>
+              Change the time
+            </button>
+          </>
+        ) : !running ? (
+          <button type="button" className="btn-secondary" onClick={() => setTyping('enter')}>
+            Type the time instead
           </button>
         ) : null}
         <button
@@ -310,12 +326,61 @@ export function StopwatchSheet({ set, title, lastMs, bestMs, onClose }: { set: W
           onClick={() => {
             holdTimer.reset();
             prevElapsed.current = 0;
+            setTypedMs(null);
             if (!stopped) onClose(null);
           }}
         >
           {stopped ? 'Discard and redo' : 'Cancel'}
         </button>
       </Pad>
+      {typing ? (
+        <TimeEntrySheet
+          title={typing === 'edit' ? 'Change the time' : 'Time'}
+          valueMs={typing === 'edit' ? finalMs : (set.timeMs ?? set.targetTimeMs ?? null)}
+          onDone={(ms) => {
+            if (ms == null || ms <= 0) return;
+            if (typing === 'edit') setTypedMs(ms);
+            else finish(ms);
+          }}
+          onClose={() => setTyping(null)}
+        />
+      ) : null}
     </Sheet>
+  );
+}
+
+/**
+ * The sheet behind tapping a number in a set row: weight, reps, effort or time. Shared by the live logger and the
+ * editor for finished workouts. `onRunStopwatch` adds "Run the stopwatch again" to a timed set's time sheet
+ * (the logger has the stopwatch; the editor does not).
+ */
+export function SetFieldSheet({ set, field, unit, effort, incrementG, onClose, onRunStopwatch }: { set: WorkoutSet; field: SetField; unit: WeightUnit; effort: 'rir' | 'rpe'; incrementG: number; onClose: () => void; onRunStopwatch?: () => void }) {
+  const write = (fn: (d: ReturnType<typeof editDb>) => Promise<unknown>) => void fn(editDb());
+  if (field === 'weight') {
+    return <NumberSheet title="Weight" unit={unit} value={set.weightG ?? set.targetWeightG ?? null} step={incrementG} format={(g) => formatWeight(g, unit)} parse={(t) => parseWeightInput(t, unit)} onDone={(v) => write((d) => updateSet(d, set.id, { weightG: v == null ? null : Math.round(v) }))} onClose={onClose} />;
+  }
+  if (field === 'reps') return <NumberSheet title="Reps" value={set.reps ?? set.targetReps ?? null} step={1} onDone={(v) => write((d) => updateSet(d, set.id, { reps: v }))} onClose={onClose} />;
+  if (field === 'time') {
+    return (
+      <TimeEntrySheet
+        title="Time"
+        valueMs={set.timeMs ?? set.targetTimeMs ?? null}
+        onDone={(ms) => write((d) => updateSet(d, set.id, { timeMs: ms }))}
+        onClose={onClose}
+        secondary={onRunStopwatch && setTypeInfo(set.type).timed ? { label: 'Run the stopwatch again', onClick: () => (onClose(), onRunStopwatch()) } : undefined}
+      />
+    );
+  }
+  const rpe = effort === 'rpe';
+  const cur = set.rir ?? set.targetRir;
+  return (
+    <NumberSheet
+      title={rpe ? 'RPE' : 'Reps in reserve'}
+      value={cur == null ? null : rpe ? 10 - cur : cur}
+      step={rpe ? 0.5 : 1}
+      min={0}
+      onDone={(v) => write((d) => updateSet(d, set.id, { rir: v == null ? null : rpe ? Math.max(0, 10 - v) : v, rpe: v == null ? null : rpe ? v : 10 - v }))}
+      onClose={onClose}
+    />
   );
 }

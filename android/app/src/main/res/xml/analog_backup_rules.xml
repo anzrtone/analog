@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Android 11 and below: same contents as analog_data_extraction_rules.xml. -->
+<!-- Android 11 and below: same contents as analog_data_extraction_rules.xml. requireFlags keeps these files out of a
+     cloud backup that Android can't encrypt on the device first (Android 9+). Android 8 and below ignores it. -->
 <full-backup-content>
-  <include domain="file" path="backups" />
-  <include domain="sharedpref" path="." />
+  <include domain="file" path="backups" requireFlags="clientSideEncryption" />
+  <include domain="sharedpref" path="." requireFlags="clientSideEncryption" />
 </full-backup-content>

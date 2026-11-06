@@ -5,13 +5,14 @@ import { activeRun } from '@/db/repos';
 import { db } from '@/db/schema';
 import { settings } from '@/db/settings';
 import { editDb, sampleShown } from '@/db/shown';
-import { activeWorkout, addExercise, addSet, completeSet, deleteWorkout, getWorkout, previousPerformance, startWorkout, uncompleteSet, updateSet, updateWorkout, type FullWorkout, type WorkoutSet } from '@/db/workouts';
+import { activeWorkout, addExercise, addSet, completeSet, deleteWorkout, getWorkout, previousPerformance, startWorkout, tidyEditedWorkout, uncompleteSet, updateSet, updateWorkout, type FullWorkout, type WorkoutSet } from '@/db/workouts';
 import { formatSet } from '@/engine/math/units';
+import { followTargets } from '@/engine/progression/follow';
 import { generateWarmups } from '@/engine/math/warmup';
 import { setTypeInfo } from '@/engine/setTypes';
 import { platform } from '@/platform';
 import { applyFinishedWorkout, startProgramDay, type RunUpdate } from '@/services/programFlow';
-import { afterSet, finish, livePrs, type WorkoutSummary } from '@/services/workoutFlow';
+import { afterSet, finish, livePrs, summarise, type WorkoutSummary } from '@/services/workoutFlow';
 import { nudgeSync } from '@/sync/runtime';
 import { runAutoBackup } from '../autoBackup';
 import { currentGym, engineSettings, rounder } from '../gym';
@@ -87,7 +88,8 @@ export async function toggleSet(workoutId: string, set: WorkoutSet): Promise<voi
     weightG: set.weightG ?? set.targetWeightG,
     reps: set.reps ?? set.targetReps,
     rir: set.rir ?? (set.type === 'failure' ? 0 : set.targetRir),
-    timeMs: set.timeMs ?? set.targetTimeMs,
+    // An open-ended set's target is a goal, not a result: only a run or a typed time counts.
+    timeMs: set.timeMs ?? (setTypeInfo(set.type).openEnded ? null : set.targetTimeMs),
   });
   sensory.setCompleted();
   let full = await getWorkout(d, workoutId);
@@ -100,13 +102,29 @@ export async function toggleSet(workoutId: string, set: WorkoutSet): Promise<voi
     for (const x of empty) await updateSet(d, x.id, { targetWeightG: done.weightG, targetReps: done.reps, targetRir: done.rir, targetTimeMs: done.timeMs });
     full = (await getWorkout(d, workoutId))!;
   }
+  // Freestyle workouts only: a program day's targets are the plan, and a mid-session tweak would blur it.
+  const owner = full.exercises.find((e) => e.id === set.workoutExerciseId);
+  if (s.nextSetTargets === 'lastSet' && owner && !owner.slotId && done) {
+    const round = await rounder(d);
+    const patches = followTargets(
+      { type: done.type, weightG: done.weightG, reps: done.reps },
+      owner.sets.filter((x) => x.order > set.order && x.completedAt == null),
+      (g) => round(g, set.exerciseId),
+    );
+    if (patches.length) {
+      for (const p of patches) await updateSet(d, p.id, { targetWeightG: p.targetWeightG, targetReps: p.targetReps, targetRir: p.targetRir });
+      full = (await getWorkout(d, workoutId))!;
+    }
+  }
   const prs = (await livePrs(d, full, set.exerciseId, s.unit)).filter((p) => p.setId === set.id);
   if (prs.length) {
     prStamps.set((x) => ({ ...x, [set.id]: prs[0]!.message }));
     sensory.pr();
   }
   const after = await afterSet(d, full, set.id, s.unit, s.defaultRestMs);
-  if (after.next) restTimer.start(after.restMs, after.label);
+  // A superset's rest comes from its group, so changing one exercise's rest can't retime it.
+  const own = full.exercises.find((e) => e.id === set.workoutExerciseId);
+  if (after.next) restTimer.start(after.restMs, after.label, own && !own.groupId ? own.id : null);
   else restTimer.skip();
   void updateWorkoutNotification(workoutId, full);
 }
@@ -139,6 +157,21 @@ export async function finishActiveWorkout(workoutId: string, endedAt = Date.now(
   platform().cancelWorkout();
   replace({ name: 'summary', id: workoutId });
   // A full backup after every finished workout (one file a day, newest 7 kept).
+  void runAutoBackup(db, platform(), 'workout').then((r) => {
+    if (r.status === 'failed') console.warn('[auto backup]', r.error);
+  });
+  nudgeSync();
+}
+
+/**
+ * Done editing a finished workout. Edits are already saved set by set; this drops what was unticked, redoes this
+ * workout's PR stamps against what came before it, and backs up and syncs the change. The program run is not
+ * touched: it moved on when the workout was first finished, and the next day's targets are read from history.
+ */
+export async function finishEditingWorkout(workoutId: string): Promise<void> {
+  await tidyEditedWorkout(db, workoutId);
+  await summarise(db, workoutId, settings().unit, true);
+  back();
   void runAutoBackup(db, platform(), 'workout').then((r) => {
     if (r.status === 'failed') console.warn('[auto backup]', r.error);
   });

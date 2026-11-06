@@ -2,14 +2,14 @@
 // Copyright (c) 2026 The Analog contributors
 import seedFile from '@/assets/seed.json';
 import { syncSeed, type SeedExercise } from '@/db/exercises';
-import { activeRun, addFeedback, getRun, loadLandmarks, saveProgram, startRun } from '@/db/repos';
+import { activeRun, addFeedback, deleteProgram, getRun, listPrograms, loadLandmarks, prsForWorkout, saveProgram, startRun } from '@/db/repos';
 import type { AnalogDB } from '@/db/schema';
 import { testDb } from '@/db/testing';
-import { addExercise, completeSet, getWorkout, startWorkout, groupExercises } from '@/db/workouts';
+import { addExercise, addSet, completeSet, getWorkout, startWorkout, groupExercises, tidyEditedWorkout, updateSet } from '@/db/workouts';
 import type { EngineSettings } from '@/engine/progression';
 import { applyFinishedWorkout, planDay, sorenessQuestions, startProgramDay } from './programFlow';
 import { TEMPLATES } from './templates';
-import { afterSet, finish } from './workoutFlow';
+import { afterSet, finish, summarise } from './workoutFlow';
 
 const seed = (seedFile as unknown as { exercises: (SeedExercise & { checked: boolean })[] }).exercises.map(({ checked: _c, ...e }) => e);
 const settings: Omit<EngineSettings, 'incrementG' | 'mesoRir'> = { unit: 'kg', round: (g) => Math.round(g / 2500) * 2500, maxJumpPct: 0.1 };
@@ -28,6 +28,62 @@ async function doWorkout(d: AnalogDB, workoutId: string, at: number, fallbackG =
   for (const e of full.exercises) for (const s of e.sets) await completeSet(d, s.id, { weightG: s.targetWeightG ?? fallbackG, reps: (s.targetReps ?? 8) + repsDelta, rir: s.targetRir ?? 2, timeMs: s.targetTimeMs }, (t += 60000));
   await finish(d, workoutId, 'kg', t + 60000);
 }
+
+describe('editing a finished workout', () => {
+  const BENCH = 'Barbell_Bench_Press_-_Medium_Grip';
+  const DAY = 86_400_000;
+  async function bench(d: AnalogDB, day: number, kgs: number): Promise<string> {
+    const id = await startWorkout(d, { title: `Bench ${day}` }, day * DAY);
+    await addExercise(d, id, BENCH, { sets: [{ type: 'working' as const, targetWeightG: kgs * 1000, targetReps: 5 }] });
+    const full = (await getWorkout(d, id))!;
+    for (const st of full.exercises[0]!.sets) await completeSet(d, st.id, { weightG: st.targetWeightG, reps: st.targetReps, rir: 2 }, day * DAY + 60_000);
+    await finish(d, id, 'kg', day * DAY + 3_600_000);
+    return id;
+  }
+
+  it("keeps an older workout's PRs when a later one lifted more", async () => {
+    const d = await db();
+    await bench(d, 5, 90);
+    const mid = await bench(d, 10, 100);
+    await bench(d, 20, 120);
+    await summarise(d, mid, 'kg', true);
+    expect((await prsForWorkout(d, mid)).length).toBeGreaterThan(0);
+  });
+
+  it('removes unticked sets and exercises left empty when editing is done, and takes a changed weight', async () => {
+    const d = await db();
+    const id = await bench(d, 10, 100);
+    const full = (await getWorkout(d, id))!;
+    const we = full.exercises[0]!;
+    await updateSet(d, we.sets[0]!.id, { weightG: 110000 });
+    const extra = await addSet(d, we.id, { weightG: 90000, reps: 8 });
+    await tidyEditedWorkout(d, id);
+    const after = (await getWorkout(d, id))!;
+    expect(after.exercises[0]!.sets.map((x) => x.weightG)).toEqual([110000]);
+    expect(after.exercises[0]!.sets.some((x) => x.id === extra)).toBe(false);
+
+    const lone = await addExercise(d, id, 'Plank', { sets: [{ type: 'working' as const }] });
+    await tidyEditedWorkout(d, id);
+    expect((await getWorkout(d, id))!.exercises.some((e) => e.id === lone)).toBe(false);
+  });
+});
+
+describe('deleting a program', () => {
+  it('hides it from the list, ends its run, and leaves finished workouts alone', async () => {
+    const d = await db();
+    const p = TEMPLATES[0]!.build();
+    await saveProgram(d, p);
+    await startRun(d, p.id);
+    const other = TEMPLATES[1]!.build();
+    await saveProgram(d, other);
+    expect(await listPrograms(d)).toHaveLength(2);
+    await deleteProgram(d, p.id);
+    expect((await listPrograms(d)).map((x) => x.id)).toEqual([other.id]);
+    expect(await activeRun(d)).toBeNull();
+    await deleteProgram(d, other.id);
+    expect(await listPrograms(d)).toHaveLength(0);
+  });
+});
 
 describe('templates', () => {
   it('only reference exercises that exist in the library', () => {

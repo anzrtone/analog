@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 The Analog contributors
 import { useMemo, useState } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { getExercises, type Exercise } from '@/db/exercises';
 import { prsForWorkout, type PrRow } from '@/db/repos';
 import { readDb } from '@/db/shown';
 import { db } from '@/db/schema';
 import { useSettings } from '@/db/settings';
-import { deleteWorkout, finishedWorkouts, getWorkout, historyPage, toLoggedSet, type FullWorkout, type HistoryItem, type Workout } from '@/db/workouts';
+import { deleteWorkout, finishedWorkouts, firstWorkoutAt, getWorkout, historyPage, toLoggedSet, type FullWorkout, type HistoryItem, type Workout } from '@/db/workouts';
 import { formatClock, formatDuration, formatSet, formatWeight } from '@/engine/math/units';
 import { setTypeInfo } from '@/engine/setTypes';
-import { calendarDays, weekStreak } from '@/engine/stats/stats';
+import { calendarDays, monthGrid, weekStreak } from '@/engine/stats/stats';
 import { groupLabels } from '@/engine/timer/rest';
 import { volumeLoadG } from '@/engine/volume/count';
 import { useData } from '@/features/data';
@@ -19,58 +20,95 @@ import { startEmptyWorkout } from '@/features/workout/actions';
 import { Stamp } from '@/components/Brand';
 import { ask } from '@/components/Dialog';
 import { SetTypeRing } from '@/components/PlateRing';
-import { cx, EmptyState, KeyValue, MarginNote, Pad, RuledRow, Screen, Section } from '@/components/ui';
+import { cx, EmptyState, IconButton, KeyValue, MarginNote, Pad, RuledRow, Screen, Section } from '@/components/ui';
 
-const WEEKS = 12;
-const DAY_LABELS = ['M', '', 'W', '', 'F', '', 'S'];
+const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 const dayKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
+// Kept outside the component: on the phone a workout replaces this screen, and Back should land on the same month.
+let lastOffset = 0;
+
 /**
- * The last 12 weeks, one column per week (Monday on top); ink dot = trained, ruled ring = rest day.
- * Month names sit over the week each month starts in. Days after today are left off.
+ * One month, Monday first, stepping back as far as the oldest workout. Filled date = trained, ringed date = today.
+ * Each month is read when it's opened, so a long history costs nothing here. A filled date opens its workout; a day
+ * with two or more asks which one.
  */
-function CalendarStrip({ workouts }: { workouts: Workout[] }) {
-  const days = calendarDays(workouts);
+function MonthCalendar({ onOpen }: { onOpen: (id: string) => void }) {
+  const clock = useSettings().clock;
+  const [offset, setOffset] = useState(lastOffset);
+  const step = (by: number) => {
+    lastOffset = offset + by;
+    setOffset(lastOffset);
+  };
   const today = new Date();
-  const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - ((today.getDay() + 6) % 7) - (WEEKS - 1) * 7);
-  const weeks = Array.from({ length: WEEKS }, (_, w) =>
-    Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + w * 7 + i);
-      return { key: dayKey(d), date: d, on: days.has(dayKey(d)), future: d > today };
-    }),
-  );
+  const start = new Date(today.getFullYear(), today.getMonth() - offset, 1);
+  const year = start.getFullYear();
+  const month = start.getMonth();
+  const workouts = useData((d) => finishedWorkouts(d, new Date(year, month, 1).getTime(), new Date(year, month + 1, 1).getTime()), [year, month], [] as Workout[]);
+  const oldest = useData((d) => firstWorkoutAt(d), [], null as number | null);
+  const oldestDate = oldest === null ? null : new Date(oldest);
+  const maxOffset = oldestDate ? (today.getFullYear() - oldestDate.getFullYear()) * 12 + today.getMonth() - oldestDate.getMonth() : 0;
+  const trained = calendarDays(workouts);
+  const { lead, days } = monthGrid(year, month);
+  const title = start.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const todayKey = dayKey(today);
+  const onDay = (key: string) => workouts.filter((w) => dayKey(new Date(w.startedAt)) === key).sort((a, b) => a.startedAt - b.startedAt);
+  const openDay = (date: Date) => {
+    const found = onDay(dayKey(date));
+    if (found.length === 1) return onOpen(found[0]!.id);
+    const time = (w: Workout) => new Date(w.startedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: clock === '12h' });
+    ask(date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }), 'Which workout?', [{ text: 'Cancel', style: 'cancel' }, ...found.map((w) => ({ text: `${w.title}, ${time(w)}`, onPress: () => onOpen(w.id) }))]);
+  };
   return (
-    <div className="px-margin pb-4 pt-1" data-tour="history-calendar" role="img" aria-label={`${[...days.keys()].length} training days in the last ${WEEKS} weeks`}>
-      <div className="flex gap-1">
-        <div className="mt-[18px] flex w-3 flex-col gap-1">
+    <div className="px-margin pb-4 pt-1" data-tour="history-calendar">
+      <div className="mb-1 flex items-center justify-between">
+        <span className="t-title-m">{title}</span>
+        <div className="flex">
+          <IconButton label="Previous month" disabled={offset >= maxOffset} onClick={() => step(1)}>
+            <ChevronLeft size={20} />
+          </IconButton>
+          <IconButton label="Next month" disabled={offset === 0} onClick={() => step(-1)}>
+            <ChevronRight size={20} />
+          </IconButton>
+        </div>
+      </div>
+      <div role="group" aria-label={`${title}: ${trained.size} training day${trained.size === 1 ? '' : 's'}`}>
+        <div className="mb-2 grid grid-cols-7">
           {DAY_LABELS.map((l, i) => (
-            <span key={i} className="t-meta h-3 text-[9px] leading-3 tracking-normal text-pencil">
+            <span key={i} className="t-meta text-center text-[10px] leading-3 tracking-normal text-pencil">
               {l}
             </span>
           ))}
         </div>
-        <div>
-          <div className="relative mb-1 h-3.5">
-            {weeks.map((w, i) => {
-              const first = w[0]!.date;
-              const prev = weeks[i - 1]?.[0]!.date;
-              if (prev && prev.getMonth() === first.getMonth()) return null;
+        <div className="grid grid-cols-7 gap-y-1">
+          {Array.from({ length: days }, (_, i) => {
+            const date = new Date(year, month, i + 1);
+            const key = dayKey(date);
+            const on = trained.has(key);
+            const isToday = key === todayKey;
+            const style = i === 0 ? { gridColumnStart: lead + 1 } : undefined;
+            const shape = 't-num-m flex h-8 w-8 items-center justify-center justify-self-center rounded-full text-[13px]';
+            if (on) {
               return (
-                <span key={i} className="t-meta absolute text-[10px] leading-[14px] text-pencil" style={{ left: i * 16 }}>
-                  {first.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}
-                </span>
+                <button
+                  key={key}
+                  type="button"
+                  style={style}
+                  aria-label={`${date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}: ${onDay(key).map((w) => w.title).join(', ')}`}
+                  onClick={() => openDay(date)}
+                  // The hit area reaches past the dot, across the gap to its neighbours, without changing how it looks.
+                  className={cx(shape, 'relative bg-ink text-paper before:absolute before:-inset-x-2 before:-inset-y-0.5 hover:bg-ink/90', isToday && 'ring-1 ring-ink ring-offset-2 ring-offset-paper')}
+                >
+                  {i + 1}
+                </button>
               );
-            })}
-          </div>
-          <div className="flex gap-1">
-            {weeks.map((w, i) => (
-              <div key={i} className="flex flex-col gap-1">
-                {w.map((c) => (
-                  <span key={c.key} className={cx('h-3 w-3 rounded-full', c.on ? 'border border-ink bg-ink' : c.future ? '' : 'border border-rule')} title={c.date.toDateString()} />
-                ))}
-              </div>
-            ))}
-          </div>
+            }
+            return (
+              <span key={key} style={style} className={cx(shape, isToday ? 'border border-ink text-ink' : date > today ? 'text-erased' : 'text-pencil')}>
+                {i + 1}
+              </span>
+            );
+          })}
         </div>
       </div>
     </div>
@@ -89,7 +127,9 @@ export function HistoryScreen() {
     const ids = new Set((first ?? []).map((f) => f.id));
     return [...(first ?? []), ...more.filter((m) => !ids.has(m.id))];
   }, [first, more]);
-  const shown = selected && items.some((i) => i.id === selected) ? selected : (items[0]?.id ?? null);
+  // Not limited to the loaded list: the calendar can pick a workout from a month the list hasn't paged to yet.
+  const shown = selected ?? items[0]?.id ?? null;
+  const open = (id: string) => (wide ? setSelected(id) : navigate({ name: 'workoutDetail', id }));
 
   // Keyset paging: the next 40 before the oldest one shown.
   const loadMore = async () => {
@@ -111,13 +151,13 @@ export function HistoryScreen() {
   const meta = streak ? `${streak} WEEK${streak > 1 ? 'S' : ''} IN A ROW` : 'FULL HISTORY, FOREVER';
   const list = (
     <>
-      <CalendarStrip workouts={recent} />
+      <MonthCalendar onOpen={open} />
       <div className="h-px bg-rule" />
       {items.map((item, index) => (
         <RuledRow
           key={item.id}
           tour={index === 0 ? 'history-list' : undefined}
-          onClick={() => (wide ? setSelected(item.id) : navigate({ name: 'workoutDetail', id: item.id }))}
+          onClick={() => open(item.id)}
           label={`${item.title}, ${new Date(item.startedAt).toDateString()}`}
           className={cx('relative', wide && item.id === shown && 'bg-raised')}
         >
@@ -179,7 +219,16 @@ export function WorkoutDetailView({ id, onDeleted = back, page }: { id: string; 
   const prSets = new Set(prs.map((x) => x.setId));
   const w = full.workout;
   return (
-    <Screen title={w.title} backButton={page} meta={new Date(w.startedAt).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: clock === '12h' }).toUpperCase()}>
+    <Screen
+      title={w.title}
+      backButton={page}
+      right={
+        <button type="button" className="btn-ghost btn-compact mb-0.5" onClick={() => navigate({ name: 'workoutEdit', id })}>
+          Edit
+        </button>
+      }
+      meta={new Date(w.startedAt).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: clock === '12h' }).toUpperCase()}
+    >
       <Section>
         <KeyValue k="Duration" v={formatDuration(durationMs)} />
         <KeyValue k="Sets" v={String(done.length)} />
@@ -231,6 +280,9 @@ export function WorkoutDetailView({ id, onDeleted = back, page }: { id: string; 
       })}
       <Section>
         <Pad className="flex flex-col gap-2">
+          <button type="button" className="btn-primary" onClick={() => navigate({ name: 'workoutEdit', id })}>
+            Edit this workout
+          </button>
           <button type="button" className="btn-secondary" onClick={() => navigate({ name: 'share', kind: 'workout', id })}>
             Share this workout
           </button>

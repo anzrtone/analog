@@ -7,7 +7,7 @@ import { feedbackForWorkouts, getMachineSetting, getRun, setMachineSetting } fro
 import { useSettings } from '@/db/settings';
 import { editDb, readDb } from '@/db/shown';
 import { addSet, exerciseHistory, getWorkout, groupExercises, previousPerformance, removeExercise, reorderExercises, setExerciseNote, setExerciseRest, setExerciseSkipped, ungroup, updateSet, type FullWorkout, type WorkoutSet } from '@/db/workouts';
-import { formatClock, formatWeight, parseWeightInput } from '@/engine/math/units';
+import { formatClock } from '@/engine/math/units';
 import { setTypeInfo } from '@/engine/setTypes';
 import { groupKindFor, groupLabels } from '@/engine/timer/rest';
 import { ASK_AGAIN_MS, shouldAskEnded } from '@/engine/timer/session';
@@ -23,12 +23,12 @@ import { sorenessQuestions } from '@/services/programFlow';
 import { Stamp } from '@/components/Brand';
 import { ask } from '@/components/Dialog';
 import { FeedbackFlow, sorenessQuestion } from '@/components/Feedback';
-import { NumberSheet } from '@/components/NumberSheet';
+import { RestPicker } from '@/components/RestPicker';
 import { RestTimer } from '@/components/RestTimer';
 import { SetColumns, SetRow, type SetField } from '@/components/SetRow';
-import { ChoiceRow, cx, Field, IconButton, MarginNote, Pad, RuledRow, Screen, Segmented, Sheet } from '@/components/ui';
+import { ChoiceRow, cx, Field, IconButton, MarginNote, Pad, RuledRow, Screen, Sheet } from '@/components/ui';
 import { PlateLoad, WorkoutMargin, WorkoutOutline } from '@/components/workout/DesktopPanels';
-import { SetDetailSheet, SetTypeSheet, StopwatchSheet } from '@/components/workout/SetSheets';
+import { SetDetailSheet, SetFieldSheet, SetTypeSheet, StopwatchSheet } from '@/components/workout/SetSheets';
 import { LongWorkoutSheet, WorkoutTimeSheet } from '@/components/workout/TimeSheets';
 
 function Elapsed({ since, onClick }: { since: number; onClick: () => void }) {
@@ -138,12 +138,20 @@ export function WorkoutScreen({ id }: { id: string }) {
   );
   const onEdit = useCallback(
     (set: WorkoutSet, field: SetField) => {
-      if (field === 'time' && setTypeInfo(set.type).timed) void openTimer(set);
+      // The stopwatch is for a set still to do. Once there's a time (run or typed), tapping it edits the number.
+      if (field === 'time' && setTypeInfo(set.type).timed && set.completedAt == null && set.timeMs == null) void openTimer(set);
       else setEdit({ set, field });
     },
     [openTimer],
   );
-  const onToggle = useCallback((set: WorkoutSet) => void toggleSet(id, set), [id]);
+  // An open-ended set is only done once the clock has run or a time is typed: ticking it can't log the target as a result.
+  const onToggle = useCallback(
+    (set: WorkoutSet) => {
+      if (set.completedAt == null && setTypeInfo(set.type).openEnded && set.timeMs == null) void openTimer(set);
+      else void toggleSet(id, set);
+    },
+    [id, openTimer],
+  );
   const onRing = useCallback((set: WorkoutSet) => setTypeFor(set), []);
   const onMore = useCallback((set: WorkoutSet) => setDetailFor(set.id), []);
 
@@ -240,29 +248,7 @@ export function WorkoutScreen({ id }: { id: string }) {
   // Whatever the answer, don't ask again for a while: backing out of a dialog shouldn't bring the question straight back.
   const snooze = () => askAgain.set((x) => ({ ...x, [id]: Date.now() + ASK_AGAIN_MS }));
 
-  const editSheet = (() => {
-    if (!edit) return null;
-    const { set, field } = edit;
-    const ex = infos.get(set.exerciseId);
-    const close = () => setEdit(null);
-    if (field === 'weight') {
-      return <NumberSheet title="Weight" unit={unit} value={set.weightG ?? set.targetWeightG ?? null} step={ex?.incrementG ?? 2500} format={(g) => formatWeight(g, unit)} parse={(t) => parseWeightInput(t, unit)} onDone={(v) => write((d) => updateSet(d, set.id, { weightG: v == null ? null : Math.round(v) }))} onClose={close} />;
-    }
-    if (field === 'reps') return <NumberSheet title="Reps" value={set.reps ?? set.targetReps ?? null} step={1} onDone={(v) => write((d) => updateSet(d, set.id, { reps: v }))} onClose={close} />;
-    if (field === 'time') return <NumberSheet title="Seconds" unit="s" value={(set.timeMs ?? set.targetTimeMs ?? 0) / 1000} step={5} onDone={(v) => write((d) => updateSet(d, set.id, { timeMs: v == null ? null : v * 1000 }))} onClose={close} />;
-    const rpe = s.effort === 'rpe';
-    const cur = set.rir ?? set.targetRir;
-    return (
-      <NumberSheet
-        title={rpe ? 'RPE' : 'Reps in reserve'}
-        value={cur == null ? null : rpe ? 10 - cur : cur}
-        step={rpe ? 0.5 : 1}
-        min={0}
-        onDone={(v) => write((d) => updateSet(d, set.id, { rir: v == null ? null : rpe ? Math.max(0, 10 - v) : v, rpe: v == null ? null : rpe ? v : 10 - v }))}
-        onClose={close}
-      />
-    );
-  })();
+  const editSheet = edit ? <SetFieldSheet set={edit.set} field={edit.field} unit={unit} effort={s.effort} incrementG={infos.get(edit.set.exerciseId)?.incrementG ?? 2500} onClose={() => setEdit(null)} onRunStopwatch={() => void openTimer(edit.set)} /> : null;
 
   const menuEx = full.exercises.find((e) => e.id === menuFor);
   const menuIdx = full.exercises.findIndex((e) => e.id === menuFor);
@@ -461,7 +447,8 @@ export function WorkoutScreen({ id }: { id: string }) {
           onClose={(ms) => {
             const set = timerFor.set;
             setTimerFor(null);
-            if (ms != null) void updateSet(editDb(), set.id, { timeMs: ms }).then(() => toggleSet(id, { ...set, timeMs: ms }));
+            // A ticked set only gets its new time; an open one is ticked with it.
+            if (ms != null) void updateSet(editDb(), set.id, { timeMs: ms }).then(() => (set.completedAt == null ? toggleSet(id, { ...set, timeMs: ms }) : undefined));
           }}
         />
       ) : null}
@@ -552,7 +539,7 @@ function ExerciseMenu({ workoutId, we, info, canGroupWithNext, gymId, machine: m
   const [note, setNote] = useState(we.note ?? '');
   const [sticky, setSticky] = useState(info?.stickyNote ?? '');
   const [machine, setMachine] = useState(machineNow);
-  const restS = Math.round((we.restMs ?? info?.defaultRestMs ?? s.defaultRestMs) / 1000);
+  const restMs = we.restMs ?? info?.defaultRestMs ?? s.defaultRestMs;
   return (
     <div>
       <RuledRow
@@ -577,7 +564,16 @@ function ExerciseMenu({ workoutId, we, info, canGroupWithNext, gymId, machine: m
         </RuledRow>
       ) : null}
       <ChoiceRow label="Rest after each set">
-        <Segmented label="Rest" value={String(restS)} onChange={(v) => write((d) => setExerciseRest(d, we.id, Number(v) * 1000))} options={[60, 90, 120, 180, 240].map((x) => ({ value: String(x), label: formatClock(x * 1000) }))} />
+        <RestPicker
+          label="Rest"
+          valueMs={restMs}
+          presetsMs={[60000, 90000, 120000, 180000, 240000]}
+          onChange={(ms) => {
+            write((d) => setExerciseRest(d, we.id, ms));
+            // A rest already running for this exercise takes the new length, counted from when it began.
+            restTimer.retimeFor(we.id, ms);
+          }}
+        />
       </ChoiceRow>
       <RuledRow>
         <span className="flex-1">Order</span>

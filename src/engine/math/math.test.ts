@@ -2,7 +2,7 @@
 // Copyright (c) 2026 The Analog contributors
 import { chartPercent, estimate1rm, loadFor } from './e1rm';
 import { DEFAULT_KG_GYM, DEFAULT_LB_GYM, loadBarbell, loadDipBelt, roundToGym } from './plates';
-import { formatClock, formatDuration, formatSet, formatWeight, fromGrams, parseWeightInput, toGrams } from './units';
+import { formatClock, formatDuration, formatSet, formatWeight, fromGrams, parseDuration, parseWeightInput, toGrams } from './units';
 import { generateWarmups, WARMUP_PRESETS } from './warmup';
 
 describe('units', () => {
@@ -20,6 +20,25 @@ describe('units', () => {
   it('formats sets with a real multiplication sign', () => {
     expect(formatSet(32500, 8, 'kg')).toBe('32.5 × 8');
     expect(formatSet(null, 12, 'kg')).toBe('12');
+  });
+  it('reads typed times', () => {
+    expect(parseDuration('1:12')).toBe(72000);
+    expect(parseDuration('72')).toBe(72000);
+    expect(parseDuration('72.5')).toBe(72500);
+    expect(parseDuration('72,5')).toBe(72500);
+    expect(parseDuration('1m12')).toBe(72000);
+    expect(parseDuration('1m 12s')).toBe(72000);
+    expect(parseDuration('2m')).toBe(120000);
+    expect(parseDuration('45s')).toBe(45000);
+    expect(parseDuration('1h2m3s')).toBe(3723000);
+    expect(parseDuration('1:02:03')).toBe(3723000);
+    expect(parseDuration('90:00')).toBe(5400000);
+    expect(parseDuration('0:05.5')).toBe(5500);
+    expect(parseDuration('')).toBeNull();
+    expect(parseDuration('abc')).toBeNull();
+    expect(parseDuration('1:75')).toBeNull();
+    expect(parseDuration('1:2:3:4')).toBeNull();
+    expect(parseDuration('m')).toBeNull();
   });
   it('formats clocks and durations', () => {
     expect(formatClock(84000)).toBe('1:24');

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 The Analog contributors
 import { makeSet } from '../testing/fixtures';
-import { adherence, averageDurationMs, buildWrapped, calendarDays, e1rmTrend, plannedSessions, tonnageComparison, weekStreak } from './stats';
+import { adherence, averageDurationMs, buildWrapped, calendarDays, e1rmTrend, monthGrid, plannedSessions, tonnageComparison, weekStreak } from './stats';
 
 const day = (y: number, m: number, d: number, h = 18) => new Date(y, m - 1, d, h).getTime();
 const w = (id: string, start: number, mins = 60) => ({ id, startedAt: start, endedAt: start + mins * 60000 });
@@ -25,6 +25,12 @@ describe('stats', () => {
   });
   it('builds calendar days', () => {
     expect(calendarDays([w('a', day(2026, 10, 28)), w('b', day(2026, 10, 28, 7))]).get('2026-10-28')).toBe(2);
+  });
+  it('lays months out from Monday', () => {
+    expect(monthGrid(2026, 9)).toEqual({ lead: 3, days: 31 }); // October 2026 starts on a Thursday
+    expect(monthGrid(2026, 10)).toEqual({ lead: 6, days: 30 }); // November 2026 starts on a Sunday
+    expect(monthGrid(2026, 5)).toEqual({ lead: 0, days: 30 }); // June 2026 starts on a Monday
+    expect(monthGrid(2028, 1)).toEqual({ lead: 1, days: 29 }); // February 2028 is a leap month
   });
   it('averages durations', () => {
     expect(averageDurationMs([w('a', 0, 60), w('b', 0, 30)])).toBe(45 * 60000);

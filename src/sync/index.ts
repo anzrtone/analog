@@ -8,27 +8,51 @@
  * Pull, merge, then push the merged result, so what is stored is always a superset of what each device had.
  * Everything is opt-in: with `method: 'off'` (the default) nothing here ever runs.
  */
+import type { BackupFile } from '@/db/backup';
 import type { AnalogDB } from '@/db/schema';
 import { loadSettings, saveSettings, type SyncSettings } from '@/db/settings';
+import { safetyBackup } from '@/features/autoBackup';
 import type { Platform } from '@/platform/types';
 import { decryptSnapshot, deriveKeys, encryptSnapshot, normalizeSyncCode, sha256Hex } from './crypto';
-import { addStats, buildSnapshot, describeMerge, emptyStats, mergeBackup, mergedAnything, parseBackup, snapshotJson, type MergeStats } from './merge';
-import type { Relay } from './relay';
+import { addStats, buildSnapshot, describeMerge, emptyStats, isLargeDelete, mergeBackup, mergedAnything, parseBackup, previewDeletes, snapshotJson, type DeletePreview, type MergeStats } from './merge';
+import { RelayError, type Relay } from './relay';
 
 export { generateSyncCode, formatSyncCode, normalizeSyncCode, WrongCodeError } from './crypto';
-export { mergedAnything, describeMerge, type MergeStats } from './merge';
+export { mergedAnything, describeMerge, type DeletePreview, type MergeStats } from './merge';
 
 export interface SyncDeps {
   db: AnalogDB;
   platform: Platform;
   relay: Relay;
   now?: () => number;
+  /** The person has seen how much this sync removes and said yes. */
+  allowLargeDelete?: boolean;
 }
 
 export type SyncOutcome =
   | { status: 'ok'; summary: string; pushed: boolean; stats: MergeStats }
   | { status: 'skipped'; reason: 'off' | 'busy' | 'no-folder' | 'no-code' }
+  | { status: 'confirm-deletes'; preview: DeletePreview }
   | { status: 'failed'; error: string };
+
+/** Stops a sync, before anything changes, until the person agrees to what it would remove. */
+class NeedsConfirmation extends Error {
+  constructor(readonly preview: DeletePreview) {
+    super('needs confirmation');
+  }
+}
+
+/** The one door every automatic merge goes through. */
+async function guardedMerge(deps: SyncDeps, backup: BackupFile): Promise<MergeStats> {
+  const preview = await previewDeletes(deps.db, backup, deps.now?.());
+  if (preview.rows > 0) {
+    if (isLargeDelete(preview) && !deps.allowLargeDelete) throw new NeedsConfirmation(preview);
+    await safetyBackup(deps.db, deps.platform, deps.now?.());
+  }
+  return mergeBackup(deps.db, backup, { honorDeletes: true, now: deps.now?.() });
+}
+
+export const describeDeletes = (p: DeletePreview): string => `This sync would remove ${p.workouts} of your ${p.totalWorkouts} workouts (${p.rows} rows in all).`;
 
 let running = false;
 
@@ -63,7 +87,7 @@ async function syncRelay(deps: SyncDeps, s: SyncSettings): Promise<Ran | 'no-cod
   // 1. Pull whatever is stored, and merge it in.
   const blob = await deps.relay.get(id);
   let stats = emptyStats();
-  if (blob) stats = await mergeBackup(deps.db, parseBackup(await decryptSnapshot(blob, key)), { honorDeletes: true });
+  if (blob) stats = await guardedMerge(deps, parseBackup(await decryptSnapshot(blob, key)));
 
   // 2. Push the merged result, unless neither side has changed since the last time.
   const file = await buildSnapshot(deps.db, deps.now?.());
@@ -89,8 +113,9 @@ async function syncFolder(deps: SyncDeps, s: SyncSettings): Promise<Ran | 'no-fo
     try {
       const backup = parseBackup(f.text);
       others++;
-      stats = addStats(stats, await mergeBackup(deps.db, backup, { honorDeletes: true }));
-    } catch {
+      stats = addStats(stats, await guardedMerge(deps, backup));
+    } catch (err) {
+      if (err instanceof NeedsConfirmation) throw err;
       // Half-synced by the cloud app, or from a newer Analog: try again next time.
       arriving++;
     }
@@ -117,11 +142,23 @@ export async function syncNow(deps: SyncDeps): Promise<SyncOutcome> {
   try {
     const s = (await loadSettings(deps.db)).sync;
     if (s.method === 'off' || s.method === 'file') return { status: 'skipped', reason: 'off' };
-    const ran = s.method === 'relay' ? await syncRelay(deps, s) : await syncFolder(deps, s);
+    const run = () => (s.method === 'relay' ? syncRelay(deps, s) : syncFolder(deps, s));
+    let ran;
+    try {
+      ran = await run();
+    } catch (err) {
+      // Two devices wrote at the same moment and the other won. Pulling again brings its work in, then this one's follows.
+      if (!(err instanceof RelayError && err.status === 409)) throw err;
+      ran = await run();
+    }
     if (ran === 'no-code' || ran === 'no-folder') return { status: 'skipped', reason: ran };
     await patchSync(deps.db, { lastAt: deps.now?.() ?? Date.now(), lastError: null, lastSummary: ran.summary });
     return { status: 'ok', ...ran };
   } catch (err) {
+    if (err instanceof NeedsConfirmation) {
+      await patchSync(deps.db, { lastError: `${describeDeletes(err.preview)} Press Sync now to review it.` }).catch(() => undefined);
+      return { status: 'confirm-deletes', preview: err.preview };
+    }
     const error = err instanceof Error ? err.message : String(err);
     await patchSync(deps.db, { lastError: error }).catch(() => undefined);
     return { status: 'failed', error };
@@ -138,9 +175,14 @@ export async function saveSyncFile(deps: Pick<SyncDeps, 'db' | 'platform' | 'now
   return where;
 }
 
+/** What merging this file would remove, for asking first. Throws a BackupError that is fit to show. */
+export const previewSyncFile = (d: AnalogDB, text: string): Promise<DeletePreview> => previewDeletes(d, parseBackup(text));
+
 /** The manual way, inbound: merge a sync file from the other device. Throws a BackupError that is fit to show. */
-export async function mergeSyncFile(deps: Pick<SyncDeps, 'db' | 'now'>, text: string): Promise<{ summary: string; stats: MergeStats }> {
-  const stats = await mergeBackup(deps.db, parseBackup(text), { honorDeletes: true });
+export async function mergeSyncFile(deps: Pick<SyncDeps, 'db' | 'now'> & { platform?: Platform }, text: string): Promise<{ summary: string; stats: MergeStats }> {
+  const backup = parseBackup(text);
+  if (deps.platform && (await previewDeletes(deps.db, backup, deps.now?.())).rows > 0) await safetyBackup(deps.db, deps.platform, deps.now?.());
+  const stats = await mergeBackup(deps.db, backup, { honorDeletes: true, now: deps.now?.() });
   const summary = describeMerge(stats, false);
   await patchSync(deps.db, { lastAt: deps.now?.() ?? Date.now(), lastError: null, lastSummary: summary });
   return { summary, stats };
@@ -149,6 +191,32 @@ export async function mergeSyncFile(deps: Pick<SyncDeps, 'db' | 'now'>, text: st
 /** Stop syncing on this device. The other devices carry on. */
 export async function stopSyncing(d: AnalogDB): Promise<void> {
   await patchSync(d, { method: 'off', code: null, dir: null, lastPushHash: null, lastBlobHash: null, lastError: null });
+}
+
+export type DeleteOutcome = { status: 'ok' } | { status: 'busy' } | { status: 'failed'; error: string };
+
+/**
+ * Stop syncing and remove this pair's data from the relay. The code is forgotten only once the server has answered,
+ * because it is the only way to ask again. Holding the sync lock stops a sync in flight from uploading it straight back.
+ * A device still paired will upload it again on its next sync, so the screen tells the person to do this last.
+ */
+export async function stopAndDeleteFromServer(deps: Pick<SyncDeps, 'db' | 'relay'>): Promise<DeleteOutcome> {
+  if (running) return { status: 'busy' };
+  running = true;
+  try {
+    const stored = (await loadSettings(deps.db)).sync.code;
+    const code = stored ? normalizeSyncCode(stored) : null;
+    if (code) {
+      const { id, token } = await deriveKeys(code);
+      await deps.relay.del(id, token);
+    }
+    await stopSyncing(deps.db);
+    return { status: 'ok' };
+  } catch {
+    return { status: 'failed', error: "Couldn't delete your data from the server, so this device is still syncing. Try again later, or stop without deleting: the server removes it after 60 days." };
+  } finally {
+    running = false;
+  }
 }
 
 /** Changing the folder or code must upload again next time. */

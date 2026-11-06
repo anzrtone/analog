@@ -13,6 +13,17 @@ import { cx, useBackClose } from './ui';
 const PAD = 8;
 const GAP = 12;
 const EDGE = 16;
+/** The ring's least distance from the screen's edges, so a full-width target still shows all four of its borders. */
+const RING_INSET = 4;
+
+/** The ring around a target: PAD outside it, but always on screen. */
+function ringAround(rect: DOMRect, vw: number, vh: number) {
+  const left = Math.max(RING_INSET, rect.left - PAD);
+  const top = Math.max(RING_INSET, rect.top - PAD);
+  const right = Math.min(vw - RING_INSET, rect.right + PAD);
+  const bottom = Math.min(vh - RING_INSET, rect.bottom + PAD);
+  return { left, top, width: Math.max(0, right - left), height: Math.max(0, bottom - top) };
+}
 
 /** Height of the part of the screen the system bars leave free, for placing the note clear of the gesture/nav bar. */
 function freeHeight(): number {
@@ -108,7 +119,7 @@ function Spotlight({ v }: { v: TourView }) {
     pos = { left, top: below + h <= vh - EDGE ? below : above >= EDGE ? above : vh - h - EDGE };
   }
   // With no target the hole closes to a point in the middle, so the whole page dims and the ring shrinks into it.
-  const hole = rect ? { left: rect.left - PAD, top: rect.top - PAD, width: rect.width + PAD * 2, height: rect.height + PAD * 2 } : { left: vw / 2, top: vh / 2, width: 0, height: 0 };
+  const hole = rect ? ringAround(rect, vw, vh) : { left: vw / 2, top: vh / 2, width: 0, height: 0 };
   return (
     <div className="fixed inset-0 z-50 animate-fade-in" role="dialog" aria-modal="true" aria-label="Tour">
       <div
