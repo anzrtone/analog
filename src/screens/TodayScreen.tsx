@@ -7,7 +7,7 @@ import { useSettings } from '@/db/settings';
 import { activeWorkout, finishedWorkouts, hasHistory, setsBetween, toLoggedSet, type Workout, type WorkoutSet } from '@/db/workouts';
 import { formatSet } from '@/engine/math/units';
 import { DEFAULT_LANDMARKS } from '@/engine/meso/landmarks';
-import { weekStreak } from '@/engine/stats/stats';
+import { startOfWeek, weekStreak } from '@/engine/stats/stats';
 import { MUSCLE_LABEL, type Muscle } from '@/engine/types';
 import { countVolume } from '@/engine/volume/count';
 import { planDay } from '@/services/programFlow';
@@ -23,11 +23,6 @@ import { EmptyState, MarginNote, Pad, RuledRow, Screen, Section } from '@/compon
 
 function today(): string {
   return new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase().replace(',', ' ·');
-}
-
-export function startOfWeek(now: number): number {
-  const d = new Date(now);
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7)).getTime();
 }
 
 /** The page you open at the gym: the workout in progress, the next program day, or a blank page to start one. */
@@ -126,15 +121,16 @@ export function TodayScreen() {
 /** Desktop Today, right-hand column: this week's sets against your landmarks, and the latest PRs. */
 function WeekGlance() {
   const [now] = useState(() => Date.now());
-  const from = startOfWeek(now);
+  const weekStart = useSettings().weekStart;
+  const from = startOfWeek(now, weekStart);
   const data = useData(
     async (d) => {
       const sets = await setsBetween(d, from, now + 7 * 86400000);
       const [infos, lms, prs, workouts] = await Promise.all([getExercises(d, sets.map((x) => x.exerciseId)), loadLandmarks(d), recentPrs(d, 4), finishedWorkouts(d, now - 400 * 86400000)]);
       const prNames = await getExercises(d, prs.map((x) => x.exerciseId));
-      return { sets, infos, lms, prs, prNames, streak: weekStreak(workouts, now) };
+      return { sets, infos, lms, prs, prNames, streak: weekStreak(workouts, now, weekStart) };
     },
-    [from],
+    [from, weekStart],
     { sets: [] as WorkoutSet[], infos: new Map<string, Exercise>(), lms: DEFAULT_LANDMARKS, prs: [] as PrRow[], prNames: new Map<string, Exercise>(), streak: 0 },
   );
   const vol = countVolume(data.sets.map(toLoggedSet), new Map([...data.infos.values()].map((e) => [e.id, toInfo(e)])));

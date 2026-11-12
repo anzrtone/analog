@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 The Analog contributors
 import { useState } from 'react';
-import { NotebookPen } from 'lucide-react';
+import { ChevronRight, NotebookPen } from 'lucide-react';
 import { createExercise, getExercise, resetExercise, setHidden, updateExercise, type Exercise, type ExerciseInput } from '@/db/exercises';
 import { picker } from '@/features/picker';
 import { prsForExercise, type PrRow } from '@/db/repos';
@@ -16,6 +16,12 @@ import { useData } from '@/features/data';
 import { back, navigate } from '@/features/nav';
 import { LineChart } from '@/components/LineChart';
 import { ChoiceRow, cx, Field, KeyValue, MarginNote, Pad, RuledRow, Screen, Section, Segmented, TextArea } from '@/components/ui';
+
+/** A set in the list opens the workout it was logged in; one from a workout still going opens the logger. */
+async function openWorkoutOf(workoutId: string): Promise<void> {
+  const w = await db.workouts.get(workoutId);
+  if (w) navigate(w.endedAt == null ? { name: 'workout', id: w.id } : { name: 'workoutDetail', id: w.id });
+}
 
 export function ExerciseDetailScreen({ id }: { id: string }) {
   const unit = useSettings().unit;
@@ -114,9 +120,10 @@ export function ExerciseDetailScreen({ id }: { id: string }) {
             .slice(-15)
             .reverse()
             .map((s) => (
-              <RuledRow key={s.id}>
+              <RuledRow key={s.id} onClick={() => void openWorkoutOf(s.workoutId)} label={`${s.timeMs ? formatClock(s.timeMs) : formatSet(s.weightG, s.reps, unit)}, ${new Date(s.completedAt!).toDateString()}. Open that workout`}>
                 <span className="t-num-m flex-1">{s.timeMs ? formatClock(s.timeMs) : formatSet(s.weightG, s.reps, unit)}</span>
                 <span className="t-num-m text-pencil">{new Date(s.completedAt!).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                <ChevronRight size={16} strokeWidth={1.75} className="text-pencil" aria-hidden />
               </RuledRow>
             ))
         )}

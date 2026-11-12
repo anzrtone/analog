@@ -8,9 +8,23 @@ import { DEFAULT_RAMP, type WarmupStep } from '@/engine/math/warmup';
 import { palettes, type ThemeName } from '@/theme/tokens';
 import type { ClockFormat } from '@/engine/timer/session';
 import type { WeightUnit } from '@/engine/types';
-import { db as userDb, type AnalogDB } from './schema';
+import { db as userDb, type AnalogDB, type LandmarkRow, type RunRow, type WorkoutSetRow } from './schema';
 
 // Settings live in a key-value table, one row per setting, as in 0.1.0. Every field and default is carried over.
+
+/**
+ * Everything finishing a workout changes, taken just before it so a mis-tap on Finish can be undone (see
+ * services/undoFinish). Device-only, and only ever the latest finish.
+ */
+export interface UndoSnapshot {
+  workoutId: string;
+  /** Sets that were never ticked: finishing deletes them. */
+  sets: WorkoutSetRow[];
+  /** The program run as it was, when the workout belonged to one. */
+  run: Pick<RunRow, 'id' | 'state' | 'active' | 'endedAt'> | null;
+  /** Learned volume landmarks, which the end of a block rewrites. */
+  landmarks: LandmarkRow[];
+}
 
 export interface AppSettings {
   unit: WeightUnit;
@@ -18,6 +32,8 @@ export interface AppSettings {
   theme: ThemeName | 'system';
   /** 12-hour (AM/PM) or 24-hour times of day. */
   clock: ClockFormat;
+  /** The day weeks start on in calendars, streaks and weekly totals: 0 Sunday … 6 Saturday. */
+  weekStart: number;
   /** Which body the muscle map on Stats draws (new in 0.2.0; 0.1.0 always drew the male one). */
   bodyFigure: 'male' | 'female';
   restSound: boolean;
@@ -77,6 +93,8 @@ export interface AppSettings {
   prefsUpdatedAt: number;
   /** Device sync (off unless the user sets it up). Never in backups and never synced. */
   sync: SyncSettings;
+  /** The latest finish, kept so it can be undone. Never exported or synced. */
+  undoFinish: UndoSnapshot | null;
 }
 
 export type SyncMethod = 'off' | 'relay' | 'folder' | 'file';
@@ -101,7 +119,7 @@ export interface SyncSettings {
 export const DEFAULT_SYNC: SyncSettings = { method: 'off', code: null, deviceId: null, dir: null, auto: true, lastAt: null, lastError: null, lastSummary: null, lastPushHash: null, lastBlobHash: null };
 
 /** The settings that follow the person from device to device. Volume, notifications, folders and ids stay per device. */
-export const SYNCED_PREFS: (keyof AppSettings)[] = ['unit', 'effort', 'theme', 'clock', 'bodyFigure', 'defaultRestMs', 'nextSetTargets', 'holdCountdown', 'holdCues', 'holdHundredths', 'warmupRamp', 'warmupBar', 'maxJumpPct', 'customSetTypes', 'customMeasurements', 'profile'];
+export const SYNCED_PREFS: (keyof AppSettings)[] = ['unit', 'effort', 'theme', 'clock', 'weekStart', 'bodyFigure', 'defaultRestMs', 'nextSetTargets', 'holdCountdown', 'holdCues', 'holdHundredths', 'warmupRamp', 'warmupBar', 'maxJumpPct', 'customSetTypes', 'customMeasurements', 'profile'];
 
 export interface LatestRelease {
   version: string;
@@ -124,13 +142,14 @@ export interface Survey {
  * Device-only settings: never exported, and a restore keeps this device's values. The sharing switches belong here so
  * that restoring an old backup can never turn on something the person turned off: "off" must stay off.
  */
-export const DEVICE_ONLY_SETTINGS: string[] = ['installId', 'shareSurvey', 'surveySentAt', 'shareInstall', 'installSentAt', 'lastSeenVersion', 'updateCheckedAt', 'latestRelease', 'autoBackupAt', 'sync'];
+export const DEVICE_ONLY_SETTINGS: string[] = ['installId', 'shareSurvey', 'surveySentAt', 'shareInstall', 'installSentAt', 'lastSeenVersion', 'updateCheckedAt', 'latestRelease', 'autoBackupAt', 'sync', 'undoFinish'];
 
 export const DEFAULT_SETTINGS: AppSettings = {
   unit: 'kg',
   effort: 'rir',
   theme: 'carbon',
   clock: '12h',
+  weekStart: 1,
   bodyFigure: 'male',
   restSound: true,
   otherSounds: false,
@@ -170,6 +189,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   autoBackupAt: null,
   prefsUpdatedAt: 0,
   sync: DEFAULT_SYNC,
+  undoFinish: null,
 };
 
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -184,6 +204,7 @@ const SETTING_CHECKS: Partial<Record<keyof AppSettings, (v: unknown) => boolean>
   effort: oneOf('rir', 'rpe'),
   theme: (v) => v === 'system' || (typeof v === 'string' && Object.hasOwn(palettes, v)),
   clock: oneOf('12h', '24h'),
+  weekStart: oneOf(0, 1, 2, 3, 4, 5, 6),
   bodyFigure: oneOf('male', 'female'),
   nextSetTargets: oneOf('lastSet', 'lastSession'),
   warmupRamp: (v) => Array.isArray(v) && v.length <= 50 && v.every((s) => isObject(s) && positive(s.pct) && positive(s.reps)),
@@ -196,6 +217,7 @@ const SETTING_CHECKS: Partial<Record<keyof AppSettings, (v: unknown) => boolean>
   // A stored release only ever points at this project's own release pages.
   latestRelease: (v) => isObject(v) && shortText(v.version) && typeof v.url === 'string' && v.url.startsWith(`${RELEASES_URL}/`) && typeof v.notes === 'string',
   sync: isObject,
+  undoFinish: (v) => isObject(v) && typeof v.workoutId === 'string' && Array.isArray(v.sets) && Array.isArray(v.landmarks),
 };
 
 /**

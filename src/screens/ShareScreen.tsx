@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { getExercise, getExercises, toInfo } from '@/db/exercises';
 import { activeRun, getProgram, getRun, prsForWorkout, recentPrs } from '@/db/repos';
 import type { AnalogDB } from '@/db/schema';
-import { useSettings } from '@/db/settings';
+import { settings, useSettings } from '@/db/settings';
 import { exerciseHistory, finishedWorkouts, getWorkout, setsBetween, toLoggedSet } from '@/db/workouts';
 import { estimate1rm } from '@/engine/math/e1rm';
 import { formatClock, formatSet, formatWeight } from '@/engine/math/units';
@@ -78,7 +78,7 @@ async function buildCard(d: AnalogDB, kind: ShareKind, id: string, o: CardOption
       const e = estimate1rm(s.weightG, s.reps, s.rir).e1rm;
       if (!top || e > top.e1rmG) top = { name: infos.get(s.exerciseId)?.name ?? '', e1rmG: e };
     }
-    const wr = buildWrapped({ workouts: ws, tonnageG: volumeLoadG(sets), topLift: top, muscleSets, now: Date.now() });
+    const wr = buildWrapped({ workouts: ws, tonnageG: volumeLoadG(sets), topLift: top, muscleSets, now: Date.now(), weekStart: settings().weekStart });
     const label = month ? now.toLocaleDateString('en-US', { month: 'long' }) : String(now.getFullYear());
     return wrappedCard(o, { meta: `${label.toUpperCase()} · ${wr.streak} WEEK STREAK`, period: label, tonnageKg: wr.tonnageKg, comparison: wr.comparison, workouts: wr.workouts, hours: wr.hours, topLift: top, mostTrained: wr.mostTrained ? MUSCLE_LABEL[wr.mostTrained] : null, unit });
   }

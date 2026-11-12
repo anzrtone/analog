@@ -13,6 +13,7 @@ import { setTypeInfo } from '@/engine/setTypes';
 import { platform } from '@/platform';
 import { applyFinishedWorkout, startProgramDay, type RunUpdate } from '@/services/programFlow';
 import { afterSet, finish, livePrs, summarise, type WorkoutSummary } from '@/services/workoutFlow';
+import { reopenFinished, snapshotBeforeFinish } from '@/services/undoFinish';
 import { nudgeSync } from '@/sync/runtime';
 import { runAutoBackup } from '../autoBackup';
 import { currentGym, engineSettings, rounder } from '../gym';
@@ -150,6 +151,8 @@ export async function updateWorkoutNotification(workoutId: string, loaded?: Full
 /** Finish now, or at `endedAt` when the session really ended earlier (forgot to tap Finish). */
 export async function finishActiveWorkout(workoutId: string, endedAt = Date.now()): Promise<void> {
   const s = settings();
+  // Kept first, so a mis-tap on Finish can be undone from the summary or the History page.
+  await snapshotBeforeFinish(db, workoutId);
   const summary = await finish(db, workoutId, s.unit, endedAt);
   const run = await applyFinishedWorkout(db, workoutId, engineSettings(), await rounder(db));
   lastFinish.set({ summary, run });
@@ -161,6 +164,15 @@ export async function finishActiveWorkout(workoutId: string, endedAt = Date.now(
     if (r.status === 'failed') console.warn('[auto backup]', r.error);
   });
   nudgeSync();
+}
+
+/** Undo Finish: the workout is open again with the sets it had, and the program run is where it was. */
+export async function reopenWorkout(workoutId: string): Promise<boolean> {
+  if (!(await reopenFinished(db, workoutId))) return false;
+  lastFinish.set({ summary: null, run: null });
+  replace({ name: 'workout', id: workoutId });
+  void updateWorkoutNotification(workoutId);
+  return true;
 }
 
 /**

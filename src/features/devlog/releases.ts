@@ -24,6 +24,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '0.7.0',
+    date: '2026-11-12',
+    summary: 'Undo a mis-tapped Finish, choose which day your weeks start on, and open the workout behind any recent set.',
+    notes: [
+      { tag: 'new', text: 'Undo Finish. Press “Finished by mistake? Reopen workout” on the summary, or “Reopen this workout” on its History page, and the workout comes back with the sets you hadn’t ticked and your program where it was. It works for the latest workout, until you log another.' },
+      { tag: 'new', text: 'Choose which day your week starts on: Monday, Sunday or any other (Settings, then Look). The History calendar, your week streak and the weeks in Stats follow it, and it syncs between your devices.' },
+      { tag: 'better', text: 'Tap a set under Recent sets on an exercise’s page to open the workout it came from.' },
+    ],
+  },
+  {
     version: '0.6.0',
     date: '2026-11-06',
     summary: 'Fix a workout after it’s finished, flip through History a month at a time, and rest that waits for you. Sync, shared links and backups also got a full security pass.',

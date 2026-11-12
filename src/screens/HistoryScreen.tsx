@@ -10,31 +10,31 @@ import { useSettings } from '@/db/settings';
 import { deleteWorkout, finishedWorkouts, firstWorkoutAt, getWorkout, historyPage, toLoggedSet, type FullWorkout, type HistoryItem, type Workout } from '@/db/workouts';
 import { formatClock, formatDuration, formatSet, formatWeight } from '@/engine/math/units';
 import { setTypeInfo } from '@/engine/setTypes';
-import { calendarDays, monthGrid, weekStreak } from '@/engine/stats/stats';
+import { calendarDays, monthGrid, weekdayLetters, weekStreak } from '@/engine/stats/stats';
 import { groupLabels } from '@/engine/timer/rest';
 import { volumeLoadG } from '@/engine/volume/count';
 import { useData } from '@/features/data';
 import { back, navigate } from '@/features/nav';
 import { useWide } from '@/features/responsive';
-import { startEmptyWorkout } from '@/features/workout/actions';
+import { reopenWorkout, startEmptyWorkout } from '@/features/workout/actions';
+import { canUndoFinish } from '@/services/undoFinish';
 import { Stamp } from '@/components/Brand';
 import { ask } from '@/components/Dialog';
 import { SetTypeRing } from '@/components/PlateRing';
 import { cx, EmptyState, IconButton, KeyValue, MarginNote, Pad, RuledRow, Screen, Section } from '@/components/ui';
 
-const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 const dayKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 // Kept outside the component: on the phone a workout replaces this screen, and Back should land on the same month.
 let lastOffset = 0;
 
 /**
- * One month, Monday first, stepping back as far as the oldest workout. Filled date = trained, ringed date = today.
+ * One month, starting the week on the day chosen in Settings, stepping back as far as the oldest workout. Filled date = trained, ringed date = today.
  * Each month is read when it's opened, so a long history costs nothing here. A filled date opens its workout; a day
  * with two or more asks which one.
  */
 function MonthCalendar({ onOpen }: { onOpen: (id: string) => void }) {
-  const clock = useSettings().clock;
+  const { clock, weekStart } = useSettings();
   const [offset, setOffset] = useState(lastOffset);
   const step = (by: number) => {
     lastOffset = offset + by;
@@ -49,7 +49,7 @@ function MonthCalendar({ onOpen }: { onOpen: (id: string) => void }) {
   const oldestDate = oldest === null ? null : new Date(oldest);
   const maxOffset = oldestDate ? (today.getFullYear() - oldestDate.getFullYear()) * 12 + today.getMonth() - oldestDate.getMonth() : 0;
   const trained = calendarDays(workouts);
-  const { lead, days } = monthGrid(year, month);
+  const { lead, days } = monthGrid(year, month, weekStart);
   const title = start.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   const todayKey = dayKey(today);
   const onDay = (key: string) => workouts.filter((w) => dayKey(new Date(w.startedAt)) === key).sort((a, b) => a.startedAt - b.startedAt);
@@ -74,7 +74,7 @@ function MonthCalendar({ onOpen }: { onOpen: (id: string) => void }) {
       </div>
       <div role="group" aria-label={`${title}: ${trained.size} training day${trained.size === 1 ? '' : 's'}`}>
         <div className="mb-2 grid grid-cols-7">
-          {DAY_LABELS.map((l, i) => (
+          {weekdayLetters(weekStart).map((l, i) => (
             <span key={i} className="t-meta text-center text-[10px] leading-3 tracking-normal text-pencil">
               {l}
             </span>
@@ -116,7 +116,7 @@ function MonthCalendar({ onOpen }: { onOpen: (id: string) => void }) {
 }
 
 export function HistoryScreen() {
-  const unit = useSettings().unit;
+  const { unit, weekStart } = useSettings();
   const wide = useWide();
   const first = useData((d) => historyPage(d, null, 40), [], undefined as HistoryItem[] | undefined);
   const recent = useData((d) => finishedWorkouts(d, Date.now() - 400 * 86400000), [], [] as Workout[]);
@@ -147,7 +147,7 @@ export function HistoryScreen() {
       </Screen>
     );
   }
-  const streak = weekStreak(recent, Date.now());
+  const streak = weekStreak(recent, Date.now(), weekStart);
   const meta = streak ? `${streak} WEEK${streak > 1 ? 'S' : ''} IN A ROW` : 'FULL HISTORY, FOREVER';
   const list = (
     <>
@@ -211,6 +211,7 @@ export function WorkoutDetailView({ id, onDeleted = back, page }: { id: string; 
   const exIds = full?.exercises.map((e) => e.exerciseId).join() ?? '';
   const infos = useData((d) => getExercises(d, exIds ? exIds.split(',') : []), [exIds], new Map<string, Exercise>());
   const prs = useData((d) => prsForWorkout(d, id), [id], [] as PrRow[]);
+  const canUndo = useData((d) => canUndoFinish(d, id), [id, full?.workout.endedAt], false);
   if (!full) return <div className="min-h-full" />;
   // Totals from the workout already loaded. PRs come from the stored table, so nothing here re-reads the whole history.
   const done = full.exercises.flatMap((e) => e.sets).filter((s) => s.completedAt != null);
@@ -280,6 +281,11 @@ export function WorkoutDetailView({ id, onDeleted = back, page }: { id: string; 
       })}
       <Section>
         <Pad className="flex flex-col gap-2">
+          {canUndo ? (
+            <button type="button" className="btn-secondary" onClick={() => void reopenWorkout(id).then((ok) => ok || ask('Can’t reopen it', 'Another workout has been logged since.'))}>
+              Reopen this workout
+            </button>
+          ) : null}
           <button type="button" className="btn-primary" onClick={() => navigate({ name: 'workoutEdit', id })}>
             Edit this workout
           </button>

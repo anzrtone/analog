@@ -5,6 +5,18 @@ For the plain state of each part, see [STATUS.md](STATUS.md); for every judgemen
 
 ---
 
+## 2026-11-12 · 0.7.0: undo Finish, the week's first day, recent sets that open
+
+**Finish is not a flag, so undo is a snapshot.** Finishing deletes the sets you never ticked, writes PR stamps and rolls the program run forward (new loads, the next day, and at the end of a week the adaptive plan). Clearing `endedAt` would bring back none of that. Just before finishing, `snapshotBeforeFinish` keeps the unticked sets, the run's state and the volume landmarks (the end of a block rewrites them) in a device-only setting, `undoFinish`: never exported, never synced. `reopenFinished` puts them back in one transaction and drops the workout's PR stamps. Only the latest finish can be undone, and only while nothing newer exists: a later workout was planned from the state undoing restores, so once one is started or logged the button gives way to Edit. Pump, soreness and pain answers given on the summary stay, since removing someone's answers seemed worse than leaving them.
+
+**The week's first day is one setting, and weeks are keyed by the date they start on.** `weekStart` (0 Sunday to 6 Saturday, Monday by default, synced like the other display preferences) now drives the History month grid, the streak, Stats weeks and Today's "this week". A week is keyed by its first date (`weekKey`), not an ISO number, so keys sort in time order for any start day. Program days (Monday-numbered) and the ISO weeks behind weekly muscle volume are deliberately left alone. They answer different questions from the calendar.
+
+**Recent sets open their workout.** A set under an exercise's Recent sets opens the workout it was logged in, or the logger if that workout is still going.
+
+**Checked:** typecheck, lint, the full test suite (473 tests), including a program day finished and reopened with its run restored byte for byte, an undo refused once a later workout exists, and the week maths for every start day. In the browser: a recent set opening its workout, the week-start rows, a Sunday- and Saturday-first calendar, and Finish followed by Reopen on the summary, which brought the unticked set back. **Not checked:** anything on Android, undo with two devices syncing (a second device that synced between the finish and the undo may see the restored sets come back after it had removed them), and the Windows app.
+
+---
+
 ## 2026-11-05 · Security fixes after the audit
 
 **The relay had no ceiling on what it could cost.** Anyone could store 20 MB under a random name, and each IPv6 address was its own rate limit. Rate limits only slow one network down, so the Worker now has a spending ledger, one Durable Object that every billable write asks first (`worker/budget.js`). The budgets fit inside R2's free allowance, and any missing piece refuses the request. Bodies stream straight to R2, so a chunked upload is refused rather than buffered. A scheduled walk deletes expired blobs, so expiry no longer rests on a dashboard rule.

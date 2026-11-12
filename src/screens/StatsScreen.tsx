@@ -8,7 +8,7 @@ import { useSettings } from '@/db/settings';
 import { finishedWorkouts, firstWorkoutAt, setsBetween, toLoggedSet, type Workout, type WorkoutSet } from '@/db/workouts';
 import { formatDuration, formatWeight } from '@/engine/math/units';
 import { DEFAULT_LANDMARKS } from '@/engine/meso/landmarks';
-import { adherence, averageDurationMs, plannedSessions, weekStreak } from '@/engine/stats/stats';
+import { adherence, averageDurationMs, plannedSessions, startOfWeek, weekStreak } from '@/engine/stats/stats';
 import { MUSCLE_LABEL, type Muscle } from '@/engine/types';
 import { countVolume, volumeLoadG } from '@/engine/volume/count';
 import { useData } from '@/features/data';
@@ -22,21 +22,17 @@ import { EmptyState, IconButton, KeyValue, MarginNote, Pad, RuledRow, Screen, Se
 type Period = 'week' | 'month' | 'year';
 const DAY = 86400000;
 const fmt = (ms: number, o: Intl.DateTimeFormatOptions) => new Date(ms).toLocaleDateString(undefined, o);
-const mondayOf = (ms: number) => {
-  const d = new Date(ms);
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7));
-};
 
 /**
- * Calendar bounds of the week (Mon–Sun), month or year `offset` periods before the current one.
+ * Calendar bounds of the week (from the start day in Settings, Monday by default), month or year `offset` periods before the current one.
  * Periods are numbered from the one holding `origin` (the first logged workout), which is number 1.
  */
-export function periodRange(period: Period, offset: number, origin: number, nowMs = Date.now()): { from: number; to: number; title: string; sub: string; count: number } {
+export function periodRange(period: Period, offset: number, origin: number, nowMs = Date.now(), weekStart = 1): { from: number; to: number; title: string; sub: string; count: number } {
   const now = new Date(nowMs);
   const o = new Date(origin);
   if (period === 'week') {
-    const cur = mondayOf(now.getTime());
-    const count = Math.round((cur.getTime() - mondayOf(origin).getTime()) / (7 * DAY)) + 1;
+    const cur = new Date(startOfWeek(now.getTime(), weekStart));
+    const count = Math.round((cur.getTime() - startOfWeek(origin, weekStart)) / (7 * DAY)) + 1;
     const start = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate() - offset * 7);
     const to = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 7).getTime();
     const last = to - DAY;
@@ -57,13 +53,13 @@ export function periodRange(period: Period, offset: number, origin: number, nowM
 }
 
 export function StatsScreen() {
-  const { unit, bodyFigure } = useSettings();
+  const { unit, bodyFigure, weekStart } = useSettings();
   const [now] = useState(() => Date.now());
   const [{ period, offset, epoch }, setNav] = useState<{ period: Period; offset: number; epoch: number }>({ period: 'week', offset: 0, epoch: 0 });
   const firstAt = useData((d) => firstWorkoutAt(d), [], null as number | null);
-  const { from, to, title, sub, count } = periodRange(period, offset, firstAt ?? now, now);
+  const { from, to, title, sub, count } = periodRange(period, offset, firstAt ?? now, now, weekStart);
   // Average over the time the user was actually logging: not before their first week, not past today.
-  const since = Math.max(from, mondayOf(firstAt ?? now).getTime());
+  const since = Math.max(from, startOfWeek(firstAt ?? now, weekStart));
   const weeks = Math.max(1, (Math.min(to, now) - since) / (7 * DAY));
   const range = useData(
     async (d) => {
@@ -111,7 +107,7 @@ export function StatsScreen() {
   const step = (by: 1 | -1) => setNav((n) => ({ ...n, offset: Math.max(0, n.offset + by), epoch: n.epoch + 1 }));
 
   return (
-    <Screen title="Stats" meta={`${weekStreak(allWorkouts, now)} WEEK STREAK · ${workouts.length} WORKOUTS IN THE LAST 12 MONTHS`}>
+    <Screen title="Stats" meta={`${weekStreak(allWorkouts, now, weekStart)} WEEK STREAK · ${workouts.length} WORKOUTS IN THE LAST 12 MONTHS`}>
       <Section title={period === 'week' ? 'WEEKLY SETS PER MUSCLE' : 'AVERAGE WEEKLY SETS PER MUSCLE'} tour="stats-volume">
         <Pad className="flex flex-col gap-3">
           <Segmented label="Period" value={period} onChange={pick} options={[{ value: 'week', label: 'Week' }, { value: 'month', label: 'Month' }, { value: 'year', label: 'Year' }]} />

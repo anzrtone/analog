@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 The Analog contributors
 import { makeSet } from '../testing/fixtures';
-import { adherence, averageDurationMs, buildWrapped, calendarDays, e1rmTrend, monthGrid, plannedSessions, tonnageComparison, weekStreak } from './stats';
+import { adherence, averageDurationMs, buildWrapped, calendarDays, e1rmTrend, monthGrid, plannedSessions, startOfWeek, tonnageComparison, weekdayLetters, weekKey, weekStreak } from './stats';
 
 const day = (y: number, m: number, d: number, h = 18) => new Date(y, m - 1, d, h).getTime();
 const w = (id: string, start: number, mins = 60) => ({ id, startedAt: start, endedAt: start + mins * 60000 });
@@ -31,6 +31,31 @@ describe('stats', () => {
     expect(monthGrid(2026, 10)).toEqual({ lead: 6, days: 30 }); // November 2026 starts on a Sunday
     expect(monthGrid(2026, 5)).toEqual({ lead: 0, days: 30 }); // June 2026 starts on a Monday
     expect(monthGrid(2028, 1)).toEqual({ lead: 1, days: 29 }); // February 2028 is a leap month
+  });
+  it('lays months out from any start day', () => {
+    expect(monthGrid(2026, 10, 0)).toEqual({ lead: 0, days: 30 }); // November 2026 starts on a Sunday: Sunday-first has no gap
+    expect(monthGrid(2026, 9, 0)).toEqual({ lead: 4, days: 31 }); // October 2026: Thursday, four days after Sunday
+    expect(monthGrid(2026, 10, 6)).toEqual({ lead: 1, days: 30 }); // Saturday-first: Sunday is the second column
+  });
+  it('names the columns from the start day', () => {
+    expect(weekdayLetters(1).join('')).toBe('MTWTFSS');
+    expect(weekdayLetters(0).join('')).toBe('SMTWTFS');
+    expect(weekdayLetters(6).join('')).toBe('SSMTWTF');
+  });
+  it('finds the week a day belongs to for any start day', () => {
+    const wed = day(2026, 11, 11); // a Wednesday
+    expect(new Date(startOfWeek(wed, 1)).getDate()).toBe(9);
+    expect(new Date(startOfWeek(wed, 0)).getDate()).toBe(8);
+    expect(new Date(startOfWeek(wed, 3)).getDate()).toBe(11);
+    expect(new Date(startOfWeek(wed, 4)).getDate()).toBe(5);
+    expect(weekKey(day(2026, 11, 8), 1)).toBe('2026-11-02'); // Sunday belongs to the Monday-first week before it
+    expect(weekKey(day(2026, 11, 8), 0)).toBe('2026-11-08'); // and starts the next one Sunday-first
+  });
+  it('counts a streak by the weeks the person keeps', () => {
+    // Sunday 8th and Monday 9th are one Sunday-first week but two Monday-first weeks.
+    const ws = [w('a', day(2026, 11, 8)), w('b', day(2026, 11, 9))];
+    expect(weekStreak(ws, day(2026, 11, 10), 1)).toBe(2);
+    expect(weekStreak(ws, day(2026, 11, 10), 0)).toBe(1);
   });
   it('averages durations', () => {
     expect(averageDurationMs([w('a', 0, 60), w('b', 0, 30)])).toBe(45 * 60000);

@@ -12,6 +12,7 @@ import { platform } from '@/platform';
 import { palettes, type Palette, type ThemeName } from '@/theme/tokens';
 import { Check } from 'lucide-react';
 import { RestPicker } from '@/components/RestPicker';
+import { WEEK_DAYS } from '@/engine/stats/stats';
 import { ChoiceRow, cx, Field, MarginNote, Pad, Screen, Section, Segmented, ToggleRow } from '@/components/ui';
 
 const THEMES: { value: ThemeName | 'system'; label: string; note: string }[] = [
@@ -84,6 +85,35 @@ const PRESET_KEYS = Object.keys(WARMUP_PRESETS) as (keyof typeof WARMUP_PRESETS)
 
 const set = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void patchSettings({ [key]: value } as Partial<AppSettings>);
 
+/** Monday or Sunday, or any other day (a lifter whose week runs Saturday to Friday, say). */
+function WeekStartRow({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const [custom, setCustom] = useState(value !== 0 && value !== 1);
+  const mode = custom ? 'custom' : String(value);
+  return (
+    <>
+      <ChoiceRow label="Week starts on">
+        <Segmented
+          label="Week starts on"
+          value={mode}
+          onChange={(v) => {
+            setCustom(v === 'custom');
+            if (v !== 'custom') onChange(Number(v));
+          }}
+          options={[{ value: '1', label: 'Monday' }, { value: '0', label: 'Sunday' }, { value: 'custom', label: 'Other' }]}
+        />
+      </ChoiceRow>
+      {custom ? (
+        <ChoiceRow label="Week starts on">
+          <Segmented label="Other start day" value={String(value)} onChange={(v) => onChange(Number(v))} options={[1, 2, 3, 4, 5, 6, 0].map((d) => ({ value: String(d), label: WEEK_DAYS[d]!.slice(0, 3) }))} />
+        </ChoiceRow>
+      ) : null}
+      <Pad className="pb-2">
+        <MarginNote>The History calendar, the week streak and Stats weeks all start on this day.</MarginNote>
+      </Pad>
+    </>
+  );
+}
+
 export function SettingsScreen() {
   const s = useSettings();
   const [notif, setNotif] = useState<string | null>(null);
@@ -135,6 +165,7 @@ export function SettingsScreen() {
         <ChoiceRow label="Muscle map">
           <Segmented label="Muscle map" value={s.bodyFigure} onChange={(v) => set('bodyFigure', v)} options={[{ value: 'male', label: 'Male' }, { value: 'female', label: 'Female' }]} />
         </ChoiceRow>
+        <WeekStartRow value={s.weekStart} onChange={(v) => set('weekStart', v)} />
         <ChoiceRow label="Clock">
           <Segmented label="Clock" value={s.clock} onChange={(v) => set('clock', v)} options={[{ value: '12h', label: '6:30 PM' }, { value: '24h', label: '18:30' }]} />
         </ChoiceRow>

@@ -5,10 +5,11 @@ import { syncSeed, type SeedExercise } from '@/db/exercises';
 import { activeRun, addFeedback, deleteProgram, getRun, listPrograms, loadLandmarks, prsForWorkout, saveProgram, startRun } from '@/db/repos';
 import type { AnalogDB } from '@/db/schema';
 import { testDb } from '@/db/testing';
-import { addExercise, addSet, completeSet, getWorkout, startWorkout, groupExercises, tidyEditedWorkout, updateSet } from '@/db/workouts';
+import { activeWorkout, addExercise, addSet, completeSet, getWorkout, startWorkout, groupExercises, tidyEditedWorkout, updateSet } from '@/db/workouts';
 import type { EngineSettings } from '@/engine/progression';
 import { applyFinishedWorkout, planDay, sorenessQuestions, startProgramDay } from './programFlow';
 import { TEMPLATES } from './templates';
+import { canUndoFinish, reopenFinished, snapshotBeforeFinish } from './undoFinish';
 import { afterSet, finish, summarise } from './workoutFlow';
 
 const seed = (seedFile as unknown as { exercises: (SeedExercise & { checked: boolean })[] }).exercises.map(({ checked: _c, ...e }) => e);
@@ -65,6 +66,52 @@ describe('editing a finished workout', () => {
     const lone = await addExercise(d, id, 'Plank', { sets: [{ type: 'working' as const }] });
     await tidyEditedWorkout(d, id);
     expect((await getWorkout(d, id))!.exercises.some((e) => e.id === lone)).toBe(false);
+  });
+});
+
+describe('undoing Finish', () => {
+  async function finishedProgramDay(d: AnalogDB, t: number) {
+    const p = TEMPLATES[0]!.build();
+    await saveProgram(d, p);
+    await startRun(d, p.id);
+    const run = (await activeRun(d))!;
+    const id = (await startProgramDay(d, run, settings, round, null, t))!;
+    const full = (await getWorkout(d, id))!;
+    // Tick everything but the last set of the first exercise.
+    const sets = full.exercises.flatMap((e) => e.sets);
+    const skipped = sets[sets.length - 1]!;
+    for (const st of sets) if (st.id !== skipped.id) await completeSet(d, st.id, { weightG: st.targetWeightG ?? 60000, reps: st.targetReps ?? 5, rir: 2 }, t + 60000);
+    const before = JSON.stringify((await activeRun(d))!.state);
+    await snapshotBeforeFinish(d, id);
+    await finish(d, id, 'kg', t + 3_600_000);
+    await applyFinishedWorkout(d, id, settings, round);
+    return { id, skipped, before };
+  }
+
+  it('reopens the workout with its unticked set and the run where it was', async () => {
+    const d = await db();
+    const { id, skipped, before } = await finishedProgramDay(d, Date.UTC(2026, 0, 5, 18));
+    expect(JSON.stringify((await activeRun(d))!.state)).not.toBe(before);
+    expect((await getWorkout(d, id))!.exercises.flatMap((e) => e.sets).some((x) => x.id === skipped.id)).toBe(false);
+    expect(await canUndoFinish(d, id)).toBe(true);
+
+    expect(await reopenFinished(d, id)).toBe(true);
+    const back = (await getWorkout(d, id))!;
+    expect(back.workout.endedAt).toBeNull();
+    expect((await activeWorkout(d))?.id).toBe(id);
+    expect(back.exercises.flatMap((e) => e.sets).some((x) => x.id === skipped.id && x.completedAt == null)).toBe(true);
+    expect(JSON.stringify((await activeRun(d))!.state)).toBe(before);
+    expect((await prsForWorkout(d, id)).length).toBe(0);
+    // It can be finished again the normal way, and the snapshot is gone.
+    expect(await canUndoFinish(d, id)).toBe(false);
+  });
+
+  it('stays finished once another workout has been logged', async () => {
+    const d = await db();
+    const { id } = await finishedProgramDay(d, Date.UTC(2026, 0, 5, 18));
+    await startWorkout(d, { title: 'Later' }, Date.UTC(2026, 0, 7, 18));
+    expect(await canUndoFinish(d, id)).toBe(false);
+    expect(await reopenFinished(d, id)).toBe(false);
   });
 });
 

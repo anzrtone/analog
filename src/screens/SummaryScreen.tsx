@@ -10,7 +10,9 @@ import { MUSCLE_LABEL, type Muscle } from '@/engine/types';
 import { summarise, type WorkoutSummary } from '@/services/workoutFlow';
 import { useData } from '@/features/data';
 import { navigate } from '@/features/nav';
-import { lastFinish } from '@/features/workout/actions';
+import { lastFinish, reopenWorkout } from '@/features/workout/actions';
+import { canUndoFinish } from '@/services/undoFinish';
+import { ask } from '@/components/Dialog';
 import { Stamp } from '@/components/Brand';
 import { FeedbackFlow, painQuestion, pumpQuestion, workloadQuestion } from '@/components/Feedback';
 import { KeyValue, MarginNote, Pad, RuledRow, Screen, Section } from '@/components/ui';
@@ -27,6 +29,7 @@ export function SummaryScreen({ id }: { id: string }) {
   const exIds = full?.exercises.map((e) => e.exerciseId).join() ?? '';
   const infos = useData((d) => getExercises(d, exIds ? exIds.split(',') : []), [exIds], new Map<string, Exercise>());
   const [asking, setAsking] = useState(true);
+  const canUndo = useData((d) => canUndoFinish(d, id), [id], false);
 
   const adaptive = !!run && !!run.program.blocks[full?.workout.blockIndex ?? 0]?.adaptive;
   const questions = useMemo(() => {
@@ -50,9 +53,16 @@ export function SummaryScreen({ id }: { id: string }) {
       title={full.workout.title}
       meta={`DONE · ${new Date(full.workout.startedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase()}`}
       footer={
-        <button type="button" className="btn-primary w-full" onClick={() => navigate({ name: 'today' })}>
-          Done
-        </button>
+        <div className="flex flex-col gap-2">
+          <button type="button" className="btn-primary w-full" onClick={() => navigate({ name: 'today' })}>
+            Done
+          </button>
+          {canUndo ? (
+            <button type="button" className="btn-ghost w-full" onClick={() => void reopenWorkout(id).then((ok) => ok || ask('Can’t reopen it', 'Another workout has been logged since.'))}>
+              Finished by mistake? Reopen workout
+            </button>
+          ) : null}
+        </div>
       }
       tour="summary"
     >

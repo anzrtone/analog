@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 The Analog contributors
 import { estimate1rm } from '../math/e1rm';
-import { isoWeekKey } from '../volume/count';
 import type { LoggedSet, Muscle } from '../types';
 import { setTypeInfo } from '../setTypes';
 
@@ -11,9 +10,30 @@ export interface WorkoutSummary {
   endedAt: number | null;
 }
 
+/** The day a week starts on, as `Date.getDay()` gives it: 0 Sunday, 1 Monday … 6 Saturday. */
+export type WeekStart = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+export const WEEK_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const;
+
+/** Local midnight at the start of the week holding `ts`. */
+export function startOfWeek(ts: number, weekStart: number = 1): number {
+  const d = new Date(ts);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() - weekStart + 7) % 7)).getTime();
+}
+
+/** One key per week, the date it starts on ("2026-11-09"), so keys sort in time order for any start day. */
+export function weekKey(ts: number, weekStart: number = 1): string {
+  const d = new Date(startOfWeek(ts, weekStart));
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** Column letters for a calendar that starts on `weekStart`: M T W T F S S, or S M T W T F S. */
+export function weekdayLetters(weekStart: number = 1): string[] {
+  return Array.from({ length: 7 }, (_, i) => WEEK_DAYS[(weekStart + i) % 7]![0]!);
+}
+
 /** Consecutive weeks (ending this week or last week) with at least one workout. Never shaming: just a count. */
-export function weekStreak(workouts: WorkoutSummary[], now: number): number {
-  const weeks = new Set(workouts.map((w) => isoWeekKey(w.startedAt)));
+export function weekStreak(workouts: WorkoutSummary[], now: number, weekStart: number = 1): number {
+  const weeks = new Set(workouts.map((w) => weekKey(w.startedAt, weekStart)));
   let streak = 0;
   const back = (ts: number) => {
     const d = new Date(ts);
@@ -21,17 +41,17 @@ export function weekStreak(workouts: WorkoutSummary[], now: number): number {
   };
   let cursor = now;
   // A streak still counts if this week hasn't had a workout yet.
-  if (!weeks.has(isoWeekKey(cursor))) cursor = back(cursor);
-  while (weeks.has(isoWeekKey(cursor))) {
+  if (!weeks.has(weekKey(cursor, weekStart))) cursor = back(cursor);
+  while (weeks.has(weekKey(cursor, weekStart))) {
     streak++;
     cursor = back(cursor);
   }
   return streak;
 }
 
-/** How a month sits on a Monday-first calendar: empty cells before the 1st, and its number of days. `month` is 0-based. */
-export function monthGrid(year: number, month: number): { lead: number; days: number } {
-  return { lead: (new Date(year, month, 1).getDay() + 6) % 7, days: new Date(year, month + 1, 0).getDate() };
+/** How a month sits on a calendar that starts on `weekStart` (Monday by default): empty cells before the 1st, and its number of days. `month` is 0-based. */
+export function monthGrid(year: number, month: number, weekStart: number = 1): { lead: number; days: number } {
+  return { lead: (new Date(year, month, 1).getDay() - weekStart + 7) % 7, days: new Date(year, month + 1, 0).getDate() };
 }
 
 /** Days with workouts, as "YYYY-MM-DD" → count, for the calendar. */
@@ -109,6 +129,7 @@ export interface WrappedInput {
   topLift: { name: string; e1rmG: number } | null;
   muscleSets: Partial<Record<Muscle, number>>;
   now: number;
+  weekStart?: number;
 }
 
 export interface Wrapped {
@@ -132,6 +153,6 @@ export function buildWrapped(i: WrappedInput): Wrapped {
     comparison: tonnageComparison(tonnageKg),
     topLift: i.topLift,
     mostTrained: most ? most[0] : null,
-    streak: weekStreak(i.workouts, i.now),
+    streak: weekStreak(i.workouts, i.now, i.weekStart),
   };
 }

@@ -2,7 +2,7 @@
 # Copyright (c) 2026 The Analog contributors
 [package]
 name = "analog"
-version = "0.6.0"
+version = "0.7.0"
 description = "Analog: a private gym logbook"
 authors = ["The Analog contributors"]
 license = "AGPL-3.0-only"
